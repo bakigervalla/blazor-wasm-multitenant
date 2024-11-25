@@ -1,2 +1,2 @@
-# blazor-wasm-multitenant
+# Blazor Multitenant
 A multitenant Blazor WASM project
