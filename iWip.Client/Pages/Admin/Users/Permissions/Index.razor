@@ -1,0 +1,104 @@
+﻿@*****************************************************************************
+
+* Copyright (c) 2024 iRobot Corporation. All Rights Reserved.
+*****************************************************************************@
+
+@page "/admin/roles"
+@using iWip.Infrastructure.Models.Users;
+@using iWip.Infrastructure.Services.Auth;
+@using permissions = iWip.Infrastructure.Common.Constants.Permission;
+
+@inject IStringLocalizer<Resource> L;
+@inject IAuthService authService
+
+<PageTitle>@L["roles"]</PageTitle>
+
+@attribute [Authorize(Roles = $"{permissions.Roles.Role.HostAdmin}, {permissions.Roles.Role.TenantAdmin}")]
+
+<style>
+    .mud-table-container {
+        overflow: auto;
+    }
+</style>
+
+<div class="flex flex-row my-4">
+    <div class="w-5/6">
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.SupervisorAccount" Size="Size.Large" />
+            @L["roles"]
+        </MudText>
+    </div>
+    <div class="w-1/6">
+        @if (authService.User.IsInRole(new string[] { permissions.Roles.Role.HostAdmin, permissions.Roles.Role.TenantAdmin }))
+        {
+            <MudButton Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Add" Color="Color.Primary" DisableElevation="true" OnClick="@(() => AddEditRole(false))">
+                @L["roles_new"]
+            </MudButton>
+        }
+    </div>
+</div>
+
+<MudTable Items="Roles"
+          Dense="true"
+          Hover="true"
+          Loading="_loading"
+          LoadingProgressColor="Color.Info"
+          Breakpoint="Breakpoint.Sm"
+          FixedHeader="true"
+          Bordered="false"
+          Outlined="true"
+          Striped="true"
+          MultiSelection=false
+          ReadOnly=true>
+    <HeaderContent>
+        @if (authService.User.IsInRole(new string[] { permissions.Roles.Role.HostAdmin, permissions.Roles.Role.TenantAdmin }))
+        {
+            <MudTh Style="width:40px;"></MudTh>
+            <MudTh Style="width:40px;"></MudTh>
+        }
+        @if (authService.User.IsInRole(new string[] { permissions.Roles.Role.HostAdmin }))
+        {
+            <MudTh><MudTableSortLabel SortBy="new Func<Role, object>(x=>x.MANUFACTURER)">@L["manufacturer_number"]</MudTableSortLabel></MudTh>
+        }
+        <MudTh><MudTableSortLabel SortBy="new Func<Role, object>(x=>x.Name)">@L["name"]</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<Role, object>(x=>x.Description)">@L["description"]</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<Role, object>(x=>x.Status)">@L["status"]</MudTableSortLabel></MudTh>
+        <MudTh Class="text-right"><MudTableSortLabel SortBy="new Func<Role, object>(x=>x.CreateDate.ToShortDateString())">@L["date_added"]</MudTableSortLabel></MudTh>
+        <MudTh Class="text-right"><MudTableSortLabel SortBy="new Func<Role, object>(x=>x.UpdatedDate.ToShortDateString())">@L["update_date"]</MudTableSortLabel></MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        @if (authService.User.IsInRole(new string[] { permissions.Roles.Role.HostAdmin }))
+        {
+
+            <MudTd Style="padding-left:1rem; !important;padding-inline-end:0 !important;">
+                <MudIconButton Size="Size.Small" Icon="@Icons.Material.Filled.Edit" Title=@L["edit"] Color="@Color.Info" OnClick="@(() => AddEditRole(true, context))" />
+            </MudTd>
+            <MudTd Style="padding-left:1rem; !important;padding-inline-end:0 !important;">
+                <MudIconButton Size="Size.Small" Icon="@Icons.Material.Filled.Security" Title=@L["permissions"] Color="@Color.Info" OnClick="@(() => SetRolePermissions(context))" />
+            </MudTd>
+        }
+        else if (authService.User.IsInRole(new string[] { permissions.Roles.Role.TenantAdmin }) /* && context.MANUFACTURER != null*/ )
+        {
+            <MudTd Style="padding-left:1rem; !important;padding-inline-end:0 !important;">
+                <MudIconButton Size="Size.Small" Icon="@Icons.Material.Filled.Edit" Title=@L["edit"] Color="@Color.Info" OnClick="@(() => AddEditRole(true, context))" />
+            </MudTd>
+            <MudTd Style="padding-left:1rem; !important;padding-inline-end:0 !important;">
+                <MudIconButton Size="Size.Small" Icon="@Icons.Material.Filled.Security" Title=@L["permissions"] Color="@Color.Info" OnClick="@(() => SetRolePermissions(context))" />
+            </MudTd>
+        }
+        else
+        {
+            <MudTd></MudTd>
+            <MudTd></MudTd>
+        }
+        @if (authService.User.IsInRole(new string[] { permissions.Roles.Role.HostAdmin }))
+        {
+            <MudTd title="@TenantText(context)">@TenantText(context)</MudTd>
+        }
+        <MudTd>@context.Name</MudTd>
+        <MudTd>@context.Description</MudTd>
+        <MudTd Class="pl-5">@context.Status</MudTd>
+        <MudTd Class="text-right pr-13">@context.CreateDate.ToShortDateString()</MudTd>
+        <MudTd Class="text-right pr-11">@context.UpdatedDate.ToShortDateString()</MudTd>
+    </RowTemplate>
+</MudTable>

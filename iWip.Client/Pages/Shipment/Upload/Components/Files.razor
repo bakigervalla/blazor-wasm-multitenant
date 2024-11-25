@@ -1,0 +1,88 @@
+﻿@*****************************************************************************
+
+* Copyright (c) 2024 iRobot Corporation. All Rights Reserved.
+*****************************************************************************@
+
+@using System.Net;
+@using iWip.Client.Common.Extensions;
+@using iWip.Client.Components.Shared.Dialogs;
+@using iWip.Client.Models.Shipment;
+@using iWip.Infrastructure.Common.Constants;
+@using iWip.Infrastructure.Common.Constants.Permission;
+@using iWip.Infrastructure.Models.Shipment;
+@using iWip.Infrastructure.Models.Shipment.Request;
+@using iWip.Infrastructure.Services.Auth;
+@using iWip.Infrastructure.Services.Shipment;
+@inject ISnackbar Snackbar;
+@inject IDialogService DialogService;
+@inject IStringLocalizer<Resource> L;
+@inject IAuthService authService
+
+
+<div class="py-6 h-screen">
+    <div class="w-64 h-1/2 flex flex-col">
+        <div class="pl-2 text-slate-600 text-sm font-bold">@L["shipment_documents"]</div>
+        <div class="w-full h-full overflow-auto bg-white" id="journal-scroll">
+            @foreach (var file in Items)
+            {
+                <div class="file-box relative transform scale-100 text-xs py-2 pl-2 shadow-sm cursor-default">
+                    <div class="text-gray-500 font-medium text-xs">@file.FILE_NAME</div>
+                    <div class="flex pt-1 text-gray-400 items-center"><MudIcon Icon="@Icons.Filled.AccessTime" Class="h-4 w-4"></MudIcon><div class="pl-0.5 whitespace-nowrap">@file.LAST_UPDATE_DATE</div></div>
+                    @if (file.FILE_TYPE.IsEnumEquals(UploadFileType.BILL_OF_LADING))
+                    {
+                        if (file.FILE_TAG.IsEnumEquals(TagType.Final))
+                        {
+                            <MudChip Color="Color.Primary" Size=@Size.Small Variant="Variant.Text" Class="ml-0 mb-0">@file.FILE_TAG</MudChip>
+                        }
+                        else
+                        {
+                            <MudChip Color="Color.Warning" Size=@Size.Small Variant="Variant.Text" Class="ml-0 mb-0">@file.FILE_TAG</MudChip>
+                        }
+                    }
+                    else if (file.FILE_TYPE.IsEnumEquals(UploadFileType.OTHER))
+                    {
+                        <div class="grid grid-cols-[30%_70%] text-xs text-gray-400">
+                            <div class="pt-1">@L["description"]:</div><div class="pt-1" title="@file.FILE_DESCRIPTION">@file.FILE_DESCRIPTION?.Truncate(40)</div>
+                            <div class="pt-1">@L["comment"]:</div><div class="pt-1" title="@file.FILE_COMMENT">@file.FILE_COMMENT?.Truncate(40)</div>
+                        </div>
+                    }
+                    @if (authService.User.HasAccess(new string[] { Permissions.Documents.Upload }))
+                    {
+                        <MudChip Color="Color.Warning" Size=@Size.Small Class="ml-0 mb-0 ignore-button" @onclick="(async () => await ConfirmIgnoreFile(file))">@L["ignore"]</MudChip>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public IList<ShippingDocument> Items { get; set; }
+    [Parameter] public EventCallback<ShippingDocument> OnIgnoreFile { get; set; }
+
+    [Inject] private IShipmentService ShipmentService { get; set; }
+
+    private async Task ConfirmIgnoreFile(ShippingDocument file)
+    {
+        var dialogresult = DialogService.Show<ShipmentIgnoreFileDialog>(L["shipment_ignore_file_dialog_title"]);
+        var result = await dialogresult.Result;
+
+        if (!result.Cancelled)
+        {
+            // update comment and status of the file
+            var document = new UpdateDocumentRequest
+                {
+                    ID = file.ID,
+                    STATUS_COMMENT = result.Data.ToString()
+                };
+
+            var response = await ShipmentService.UpdateShippingDocumentAsync(document);
+
+            if (response.HttpStatusCode != HttpStatusCode.OK)
+                Snackbar.Add(L["shipment_docs_ignore_file_failed"], Severity.Error);
+            else
+                await OnIgnoreFile.InvokeAsync(file);
+        }
+    }
+
+}

@@ -1,0 +1,78 @@
+@*****************************************************************************
+
+* Copyright (c) 2024 iRobot Corporation. All Rights Reserved.
+*****************************************************************************@
+
+@using iWip.Infrastructure.Common.Constants;
+@using iWip.Infrastructure.Models.Users;
+@inject IStringLocalizer<Resource> L;
+
+<MudAppBar Class="pr-8"
+           Elevation="0"
+           Style="@(ThemeManager.IsDarkMode ? "background: rgba(21,27,34,0.7)" : "background: rgba(255,255,255,0.7)")">
+    @if (!CanMiniSideMenuDrawer)
+    {
+        <MudHidden Breakpoint="Breakpoint.MdAndUp">
+            <MudTooltip Arrow="true"
+                        Text="Toggle menu">
+                <MudIconButton Class="mr-3"
+                               Color="Color.Default"
+                               Edge="Edge.Start"
+                               Icon="@Icons.Material.Filled.Menu"
+                               OnClick="ToggleSideMenuDrawer" />
+            </MudTooltip>
+        </MudHidden>
+    }
+    <div class="d-flex justify-start my-6 align-center w-1/3">
+        @if (!User.IsHost)
+        {
+            <div class="flex items-center">
+                <MudImage Src="@User.Tenant?.LogoImage" Alt="Logo" Elevation="25" Class="h-8 rounded-lg" ObjectFit="ObjectFit.Fill" />
+                <div class="d-flex flex-column px-2">
+                    <MudText Class="d-flex justify-start text-left text-gray-900" Typo="Typo.body2">
+                        @User.Tenant.DisplayName
+                    </MudText>
+                </div>
+            </div>
+        }
+        else if (User.MANUFACTURER.HasValue && ShowDropDown == false)
+        {
+            <div class="flex items-center @HoverClass" @onmouseover="MouseOver" @onmouseout="MouseOut" onclick="@MouceClick">
+                <MudImage Src="@User.Tenant?.LogoImage" Alt="Logo" Elevation="25" Class="h-8 rounded-lg" ObjectFit="ObjectFit.Fill" />
+                <div class="d-flex flex-column px-2">
+                    <MudText Class="d-flex justify-start text-left text-gray-900" Typo="Typo.body2">
+                        @User.Tenant.DisplayName
+                    </MudText>
+                </div>
+            </div>
+        }
+        else
+        {
+            <TenantSwitch OnValueChanged="SetTenant" Open="@ShowDropDown" Item="@User.Tenant" OnPopupChanged="RefreshPage" />
+        }
+    </div>
+    <MudSpacer />
+    <LanguageSelector />
+    <UserMenu Class="ml-3"
+              User="User" />
+</MudAppBar>
+
+<style>
+    .hover-tenant {
+        display: flex;
+        border: 1px solid #D9D9D8;
+        border-radius: 10px;
+        vertical-align: middle;
+        align-items: center;
+        padding: 4px 12px;
+    }
+
+    .hover-tenant:after {
+        content: "";
+        margin: 0 0.5em;
+        display: inline-block;
+        border: 7px solid transparent;
+        border-top: 8px solid gray;
+        border-bottom: 0 none;
+    }
+</style>

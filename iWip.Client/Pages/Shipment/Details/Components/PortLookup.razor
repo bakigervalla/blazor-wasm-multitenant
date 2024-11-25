@@ -1,0 +1,52 @@
+﻿@*****************************************************************************
+
+* Copyright (c) 2024 iRobot Corporation. All Rights Reserved.
+*****************************************************************************@
+
+@using System.Linq.Expressions;
+@inject IStringLocalizer<Resource> L
+
+<MudItem Class="grid grid-cols-[32%_70%] gap-1">
+    <label for="title" class="w-96">@Label</label>
+    <MudAutocomplete Clearable
+                     CoerceText="true"
+                     For="@For"
+                     SearchFunc="@Search"
+                     MaxItems=null
+                     T="string"
+                     Value="SelectedValue"
+                     ValueChanged="@((e) => OnValueChanged.InvokeAsync(e))"
+                     ResetValueOnEmptyText="true"
+                     Immediate="true"
+                     Variant="Variant.Outlined"
+                     Margin="Margin.Dense" Class="w-96"
+                     Disabled=@IsCourierManaged>
+        <MoreItemsTemplate>
+            <MudText Align="Align.Center" Class="px-4 py-1">
+                @string.Format(L["autocomplete_max_items_help_text"], 100)
+            </MudText>
+        </MoreItemsTemplate>
+        <NoItemsTemplate>
+            <MudText Align="Align.Center" Class="px-4 py-1">
+                @L["autocomplete_empty_list_help_text"]
+            </MudText>
+        </NoItemsTemplate>
+    </MudAutocomplete>
+</MudItem>
+
+@code {
+    [Parameter] public IEnumerable<string> Items { get; set; }
+    [Parameter] public string Label { get; set; }
+    [Parameter] public string? SelectedValue { get; set; }
+    [Parameter] public Expression<Func<string>>? For { get; set; }
+    [Parameter] public EventCallback<string> OnValueChanged { get; set; }
+    [Parameter] public bool IsCourierManaged { get; set; }
+
+    private async Task<IEnumerable<string>> Search(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+            return Items;
+
+        return Items.Where(x => x.Contains(value, StringComparison.InvariantCultureIgnoreCase));
+    }
+}

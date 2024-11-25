@@ -1,0 +1,29 @@
+﻿@*****************************************************************************
+
+* Copyright (c) 2024 iRobot Corporation. All Rights Reserved.
+*****************************************************************************@
+
+@using iWip.Client.Pages.Orders.Details.Components.Order.Components;
+@using iWip.Infrastructure.Models.Containers;
+@using iWip.Infrastructure.Models.Orders;
+@using iWip.Infrastructure.Models.PurchaseOrders.Requests;
+@using iWip.Infrastructure.Services.PurchaseOrders;
+@inject IStringLocalizer<Resource> L;
+
+<MudCardContent>
+@*    <div>
+        <OrderInfo Order="OrderHeader" />
+    </div>*@
+    @if (OrderHeader.ContainerContents?.Count > 0)
+    {
+        <div>
+            <MudDivider DividerType="DividerType.Middle" Class="mt-8 mb-4" />
+            <Containers Items="@OrderHeader.ContainerContents" />
+        </div>
+    }
+</MudCardContent>
+
+@code {
+    [Parameter] public POHeaderRequest OrderHeader { get; set; }
+
+}

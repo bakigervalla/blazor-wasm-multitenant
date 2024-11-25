@@ -1,0 +1,59 @@
+﻿@*****************************************************************************
+
+* Copyright (c) 2024 iRobot Corporation. All Rights Reserved.
+*****************************************************************************@
+
+@using iWip.Infrastructure.Models.Users;
+@using iWip.Infrastructure.Services.Auth;
+@inject IAuthService authService
+@inject IStringLocalizer<Resource> L
+
+<div class="flex">
+    <div class="px-6">
+
+        <div class="flex items-center">
+            <MudIcon Class="mx-2" Icon="@Icons.Material.Filled.AccountBox" />
+            <MudText Class="py-4" Typo="Typo.h6">@L["profile"]</MudText>
+        </div>
+        <MudDivider Class="mb-8" />
+
+        <div class="grid grid-cols-2">
+            <div class="px-4 py-2 font-semibold">@L["Email"]</div>
+            <div class="px-4 py-2">@User.Email</div>
+        </div>
+        <div class="grid grid-cols-2">
+            <div class="px-4 py-2 font-semibold">@L["first_name"]</div>
+            <div class="px-4 py-2">@User.FirstName</div>
+        </div>
+        <div class="grid grid-cols-2">
+            <div class="px-4 py-2 font-semibold">@L["last_name"]</div>
+            <div class="px-4 py-2">@User.LastName</div>
+        </div>
+        @if (User.Tenant is not null)
+        {
+            <div class="grid grid-cols-2">
+                <div class="px-4 py-2 font-semibold">@L["irobot_contact"]</div>
+                <div class="px-4 py-2">@User.Tenant.DisplayName</div>
+            </div>
+        }
+        <div class="grid grid-cols-2">
+            <div class="px-4 py-2 font-semibold">@L["is_active"]</div>
+            <div class="px-4 py-2">@User.IsActive</div>
+        </div>
+        <div class="grid grid-cols-2">
+            <div class="px-4 py-2 font-semibold">@L["roles"]</div>
+            <div class="px-4 py-2">
+                @foreach (var role in User.Roles)
+                {
+                    <MudChip Size="Size.Small" Text="grey">@role.Name</MudChip>
+                }
+            </div>
+        </div>
+    </div>
+
+</div>
+
+@code {
+
+    private User User { get => authService.User; }
+}

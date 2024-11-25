@@ -1,0 +1,123 @@
+﻿@*****************************************************************************
+
+* Copyright (c) 2024 iRobot Corporation. All Rights Reserved.
+*****************************************************************************@
+
+@page "/shipment"
+@using iWip.Client.Common.Extensions;
+@using iWip.Infrastructure.Common.Constants.Permission;
+@using iWip.Infrastructure.Models.Shipment;
+@using iWip.Infrastructure.Models.Shipment.Response;
+@using iWip.Infrastructure.Services.Auth;
+@inject Navigation navigation;
+@inject IStringLocalizer<Resource> L;
+@inject IAuthService authService
+
+@attribute [Authorize(Permissions.Shipments.View)]
+
+<PageTitle>@L["shipments"]</PageTitle>
+<style>
+    .mud-table-container {
+        overflow: auto;
+    }
+
+    .mud-switch-label-small {
+        width: 70px;
+        line-height: 13px;
+    }
+</style>
+
+<div class="flex flex-row mb-12">
+    <div class="w-5/6">
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Train" Size="Size.Large" />
+            @L["shipments"]
+        </MudText>
+    </div>
+    <div class="w-1/6">
+        @if (authService.User.HasAccess(new string[] { Permissions.Shipments.Create }))
+        {
+            <MudButton Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Add" Color="Color.Primary" DisableElevation="true" OnClick="@(()=>navigation.NavigateTo("shipment/details"))">
+                @L["shipment_new"]
+            </MudButton>
+        }
+    </div>
+</div>
+
+<div class="search-toolbar w-full flex flex-row bg-slate-100 rounded-md gap-4 px-8 py-2 mb-2 items-center" @onkeyup="HandleKeyUp">
+    <MudTextField Class="w-40" @bind-Value="Filter.HOUSE_BILL_OF_LADING" Placeholder="@L["shipment_name"]"></MudTextField>
+    <MudTextField @bind-Value="Filter.FORWARDER" Placeholder="@L["forwarder"]"></MudTextField>
+    <MudTextField Class="w-56" @bind-Value="Filter.SHIP_VIA" Placeholder="@L["shipment_method_1"]"></MudTextField>
+    <MudTextField @bind-Value="Filter.EST_TIME_DEPARTURE" Placeholder="@L["etd"]"></MudTextField>
+    <MudTextField @bind-Value="Filter.EST_TIME_ARRIVAL" Placeholder="@L["eta"]"></MudTextField>
+    <MudTextField Class="w-56" @bind-Value="Filter.PORT_OF_ORIGIN" Editable="true" Placeholder="@L["port_of_loading"]" />
+    <MudTextField Class="w-56" @bind-Value="Filter.PORT_OF_DISCHARGE" Placeholder="@L["port_of_discharge"]"></MudTextField>
+    <MudTextField Class="w-56" @bind-Value="Filter.DESTINATION_PORT" Placeholder="@L["port_of_destination"]"></MudTextField>
+    <MudTextField @bind-Value="Filter.PURCHASE_ORDER_NUMBER" Placeholder="@L["po_number"]"></MudTextField>
+    <MudTextField @bind-Value="Filter.LINE_NUM" Placeholder="@L["line_no"]"></MudTextField>
+    <MudTextField @bind-Value="Filter.ITEM_NUMBER" Placeholder="@L["po_item_number_short"]"></MudTextField>
+    <MudSwitch @bind-Checked="@ShipmentStatus" Size="Size.Small" Label="@SwitchLabel" LabelPosition="LabelPosition.End" Color="Color.Primary" />
+</div>
+<MudTable @ref="table" ServerData="Items"
+          Dense="true"
+          Hover="true"
+          Loading="_loading"
+          LoadingProgressColor="Color.Info"
+          Breakpoint="Breakpoint.Sm"
+          FixedHeader="true"
+          Bordered="false"
+          Outlined="true"
+          Striped="true"
+          MultiSelection=false
+          ReadOnly=true
+          RowClassFunc="@HightlightSelected">
+    <HeaderContent>
+        <MudTh><MudTableSortLabel SortBy="new Func<ShippingListResponse, object>(x=>x.HOUSE_BILL_OF_LADING)">@L["shipment_name"]</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<ShippingListResponse, object>(x=>x.CONTAINER_NUMBER)">@L["container_no"]</MudTableSortLabel></MudTh>
+        <MudTh Class="text-left"><MudTableSortLabel SortBy="new Func<ShippingListResponse, object>(x=>x.FORWARDER)">@L["forwarder"]</MudTableSortLabel></MudTh>
+        <MudTh Class="text-left"><MudTableSortLabel SortBy="new Func<ShippingListResponse, object>(x=>x.SHIP_VIA)">@L["shipment_method_1"]</MudTableSortLabel></MudTh>
+        <MudTh Class="text-right"><MudTableSortLabel SortBy="new Func<ShippingListResponse, object>(x=>x.EST_TIME_DEPARTURE)">@L["etd"]</MudTableSortLabel></MudTh>
+        <MudTh Class="text-right"><MudTableSortLabel SortBy="new Func<ShippingListResponse, object>(x=>x.EST_TIME_ARRIVAL)">@L["eta"]</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<ShippingListResponse, object>(x=>x.PORT_OF_ORIGIN)">@L["port_of_loading"]</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<ShippingListResponse, object>(x=>x.PORT_OF_DISCHARGE)">@L["port_of_discharge"]</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<ShippingListResponse, object>(x=>x.DESTINATION_PORT)">@L["port_of_destination"]</MudTableSortLabel></MudTh>
+        <MudTh Class="text-left"><MudTableSortLabel SortBy="new Func<ShippingListResponse, object>(x=>x.PURCHASE_ORDER_NUMBER)">@L["po_number"]</MudTableSortLabel></MudTh>
+        <MudTh Class="text-left"><MudTableSortLabel SortBy="new Func<ShippingListResponse, object>(x=>x.LINE_NUM)">@L["line_no"]</MudTableSortLabel></MudTh>
+        <MudTh Class="text-left"><MudTableSortLabel SortBy="new Func<ShippingListResponse, object>(x=>x.ITEM_NUMBER)">@L["po_item_number_short"]</MudTableSortLabel></MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd>
+            @if (authService.User.HasAccess(new string[] { Permissions.Shipments.View }))
+            {
+                <MudLink Class="text-sm" Href="@($"shipment/details/{@context.HOUSE_BILL_OF_LADING}")">@context.HOUSE_BILL_OF_LADING</MudLink>
+            }
+            else
+            {
+                <MudText Class="text-sm">@context.HOUSE_BILL_OF_LADING</MudText>
+            }
+        </MudTd>
+        <MudTd>
+            @if (authService.User.HasAccess(new string[] { Permissions.Containers.View }))
+            {
+                <MudLink Class="text-sm" Href="@($"containers/edit/{@context.CONTAINER_ID}")">@context.CONTAINER_NUMBER</MudLink>
+            }
+            else
+            {
+                <MudText Class="text-sm">@context.CONTAINER_NUMBER</MudText>
+            }
+        </MudTd>
+        <MudTd Class="text-left">@context.FORWARDER</MudTd>
+        <MudTd Class="text-left">@context.SHIP_VIA</MudTd>
+        <MudTd Class="text-right pr-12">@context.EST_TIME_DEPARTURE.ToShortDateStringOrEmpty()</MudTd>
+        <MudTd Class="text-right pr-11">@context.EST_TIME_ARRIVAL.ToShortDateStringOrEmpty()</MudTd>
+        <MudTd>@context.PORT_OF_ORIGIN</MudTd>
+        <MudTd>@context.PORT_OF_DISCHARGE</MudTd>
+        <MudTd>@context.DESTINATION_PORT</MudTd>
+        <MudTd Class="text-left">@context.PURCHASE_ORDER_NUMBER</MudTd>
+        <MudTd Class="text-left">@context.LINE_NUM</MudTd>
+        <MudTd Class="text-center">@context.ITEM_NUMBER</MudTd>
+    </RowTemplate>
+    <PagerContent>
+        <MudTablePager RowsPerPageString=@L["rows_per_page"] />
+    </PagerContent>
+</MudTable>

@@ -1,0 +1,16 @@
+﻿/*****************************************************************************
+
+* Copyright (c) 2024 iRobot Corporation. All Rights Reserved.
+*****************************************************************************/
+
+.mud-table {
+    box-shadow: none !important
+}
+
+.mud-table-container {
+    width: 100% !important
+}
+
+.col-nav-link {
+    width: 80px;
+}

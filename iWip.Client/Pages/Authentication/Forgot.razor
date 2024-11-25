@@ -1,0 +1,136 @@
+﻿@*****************************************************************************
+
+* Copyright (c) 2024 iRobot Corporation. All Rights Reserved.
+*****************************************************************************@
+
+@page "/authentication/forgot-password"
+@using iWip.Infrastructure.Models.Auth;
+@using iWip.Infrastructure.Services.Auth;
+@inject IAuthService authService
+@inject IStringLocalizer<Resource> L
+@inherits OwningComponentBase
+
+<AuthorizeView>
+    <NotAuthorized Context="Auth">
+        <MudText Typo="Typo.h4" GutterBottom="true">@L["forgot_password"]</MudText>
+        @if (_step == 1)
+        {
+            <MudText Typo="Typo.subtitle2">@L["forgot_pass_subtitle"]</MudText>
+            <MudTextField T="string" @bind-Value="@_emailAddress" Label="@L["email"]" Variant="Variant.Outlined" Class="my-4"></MudTextField>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large" FullWidth="true" Class="mt-3" Disabled="@(string.IsNullOrEmpty(_emailAddress) || _sending )" OnClick="@(()=>ForgotPassword())">
+                @if (_sending)
+                {
+                    <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                    <MudText Class="ms-2"> @L["waiting"]</MudText>
+                }
+                else
+                {
+                    <MudText>@L["reset_password"]</MudText>
+                }
+            </MudButton>
+        }
+        else if (_step == 2)
+        {
+            <MudText Typo="Typo.subtitle2">@L["recover_pass_subtitle"]</MudText>
+            <MudTextField T="string"
+            @bind-Value="@ResetPasswordModel.ConfirmationCode"
+                          Label="@L["token"]"
+                          HelperText="@L["reset_pass_help_text"]"
+                          Variant="Variant.Outlined"
+                          Class="my-4"></MudTextField>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large" FullWidth="true" Class="mt-3" Disabled="@_sending" OnClick="@(()=>ResetPassword())">
+                @if (_sending)
+                {
+                    <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                    <MudText Class="ms-2"> @L["waiting"]</MudText>
+                }
+                else
+                {
+                    <MudText>@L["forgot_pass_reset"]</MudText>
+                }
+            </MudButton>
+        }
+            
+        <MudItem Class="flex justify-center mt-2.5">
+            <MudLink Href="/authentication/login">@L["go_to_login"]</MudLink>
+        </MudItem>
+
+    </NotAuthorized>
+
+    <Authorized>
+        <RedirectToHome></RedirectToHome>
+    </Authorized>
+</AuthorizeView>
+
+
+@code {
+    private int _step = 1;
+    private string _emailAddress = string.Empty;
+    private bool _sending = false;
+
+    private UserConfirmForgotPasswordRequest ResetPasswordModel { get; set; }
+
+    private async Task ForgotPassword()
+    {
+        try
+        {
+            _sending = true;
+
+            var response = await authService.ForgotPasswordAsync(_emailAddress);
+
+            if (response.HttpStatusCode == System.Net.HttpStatusCode.OK)
+            {
+                _step = 2;
+                Snackbar.Clear();
+                ResetPasswordModel = new();
+                Snackbar.Add(string.Format(L["forgot_pass_email_sent"], _emailAddress), Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add(string.Format(L["forgot_pass_failed"]), MudBlazor.Severity.Error);
+            }
+
+        }
+        catch (Exception e)
+        {
+            Snackbar.Add(string.Format("{0} {1}", L["forgot_pass_failed"], e.Message), Severity.Error);
+        }
+        finally
+        {
+            _sending = false;
+        }
+    }
+
+
+
+    private async Task ResetPassword()
+    {
+        try
+        {
+            _sending = true;
+
+            var response = await authService.ResetPasswordAsync(ResetPasswordModel);
+
+            if (response.HttpStatusCode == System.Net.HttpStatusCode.OK)
+            {
+                Snackbar.Clear();
+                Snackbar.Add($"{L["password_reset_success"]}", Severity.Success);
+
+                NavigationManager.NavigateTo("/authentication/login");
+            }
+            else
+            {
+                Snackbar.Add(string.Format(L["forgot_pass_failed"]), MudBlazor.Severity.Error);
+            }
+
+        }
+        catch (Exception e)
+        {
+            Snackbar.Add(L["forgot_pass_failed"], Severity.Error);
+        }
+        finally
+        {
+            _sending = false;
+        }
+    }
+}

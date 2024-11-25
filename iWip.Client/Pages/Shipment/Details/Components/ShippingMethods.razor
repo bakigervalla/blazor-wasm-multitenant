@@ -1,0 +1,104 @@
+﻿@*****************************************************************************
+
+* Copyright (c) 2024 iRobot Corporation. All Rights Reserved.
+*****************************************************************************@
+
+@using System.Linq.Expressions;
+@using iWip.Infrastructure.Models.Shipment;
+@using iWip.Infrastructure.Services.Shipment;
+@inject IStringLocalizer<Resource> L;
+
+<div class="flex flex-col gap-2">
+    <MudItem Class="grid grid-cols-[34%_66%] gap-1">
+        <label>@L["shipment_method_1"]</label>
+        <MudRadioGroup InputClass="flex direction-row pl-2" T="string" SelectedOption="@ShipMethodOne" SelectedOptionChanged="OnMethodOneChanged">
+            @foreach (var itm in MethodsOne)
+            {
+                <MudRadio Class="shipping-method-radio-btn" T="string" Size="Size.Small" Option="@itm.Name" Color="Color.Default" Dense="true" title="@itm.Description">@itm.Name</MudRadio>
+            }
+        </MudRadioGroup>
+    </MudItem>
+    @if (!IsValidMethod1)
+    {
+        <MudItem Class="grid grid-cols-[30%_70%] gap-4">
+            <label />
+            <div class="mud-input-control-helper-container px-2">
+                <p class="mud-input-helper-text mud-input-error">
+                    <div class="d-flex">
+                        <div class="me-auto">
+                            @string.Format(L["cannot_be_empty"], L["shipment_method_1"])
+                        </div>
+                    </div>
+                </p>
+            </div>
+        </MudItem>
+    }
+    <MudItem Class="grid grid-cols-[34%_66%] gap-1">
+        <label class="w-32">@L["shipment_method_2"]</label>
+        <MudRadioGroup InputClass="flex direction-row pl-2" T="string" SelectedOption="@ShipMethodTwo" SelectedOptionChanged="OnMethodTwoChanged">
+            @foreach (var itm in MethodsTwo)
+            {
+                <MudRadio Class="shipping-method-radio-btn" T="string" Size="Size.Small" Option="itm.Name" Color="Color.Default" Dense="true" title="@itm.Description">@itm.Name</MudRadio>
+            }
+        </MudRadioGroup>
+    </MudItem>
+    @if (!IsValidMethod2)
+    {
+        <MudItem Class="grid grid-cols-[30%_70%] gap-4">
+            <label />
+            <div class="mud-input-control-helper-container px-2">
+                <p class="mud-input-helper-text mud-input-error">
+                    <div class="d-flex">
+                        <div class="me-auto">
+                            @string.Format(L["cannot_be_empty"], L["shipment_method_2"])
+                        </div>
+                    </div>
+                </p>
+            </div>
+        </MudItem>
+    }
+</div>
+
+@code {
+    private string _shipMethodOne;
+    [Parameter]public string? ShipMethodOne { get => _shipMethodOne?.ToUpper(); set { _shipMethodOne = value; } }
+    private string _shipMethodTwo;
+    [Parameter]public string? ShipMethodTwo {get => _shipMethodTwo; set { _shipMethodTwo = value; }}
+    [Parameter] public EventCallback<string> OnShipMethodOneValueChanged { get; set; }
+    [Parameter] public EventCallback<string> OnShipMethodTwoValueChanged { get; set; }
+    [Parameter] public bool IsValidMethod1 { get; set; }
+    [Parameter] public bool IsValidMethod2 { get; set; }
+
+    [Inject] private IShipmentService ShipmentService { get; set; }
+
+    private IEnumerable<ShippingMethod> MethodsOne { get; set; } = new List<ShippingMethod>();
+    private IEnumerable<ShippingMethod> MethodsTwo { get; set; } = new List<ShippingMethod>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await GetShippingMethodsAsync();
+    }
+
+    private async Task GetShippingMethodsAsync()
+    {
+        var response = await ShipmentService.GetShippingMethodsLookupAsync();
+
+        if (response is not null)
+        {
+            MethodsOne = response.Where(x => x.Category == "Method 1").ToArray();
+            MethodsTwo = response.Where(x => x.Category == "Method 2").ToArray();
+        }
+    }
+
+    private void OnMethodOneChanged(string value)
+    {
+        _shipMethodOne = value;
+        OnShipMethodOneValueChanged.InvokeAsync(value);
+    }
+
+    private void OnMethodTwoChanged(string value)
+    {
+        _shipMethodTwo = value;
+        OnShipMethodTwoValueChanged.InvokeAsync(value);
+    }
+}

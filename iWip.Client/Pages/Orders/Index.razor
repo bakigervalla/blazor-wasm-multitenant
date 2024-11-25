@@ -1,0 +1,96 @@
+﻿@*****************************************************************************
+
+* Copyright (c) 2024 iRobot Corporation. All Rights Reserved.
+*****************************************************************************@
+
+@page "/orders"
+
+@using iWip.Client.Common.Extensions;
+@using iWip.Infrastructure.Common.Constants.Permission;
+@using iWip.Infrastructure.Models.Orders;
+@using iWip.Infrastructure.Services.Auth;
+@inject NavigationManager navigationManager;
+@inject IStringLocalizer<Resource> L;
+@inject IAuthService authService
+
+@attribute [Authorize(Permissions.Orders.View)]
+
+<PageTitle>@L["purchaseorders"]</PageTitle>
+<style>
+    .mud-table-container {
+        overflow: auto;
+    }
+</style>
+
+<div class="flex flex-row mb-12">
+    <div class="w-5/6">
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Blinds" Size="Size.Large" />
+            @L["purchaseorders"]
+        </MudText>
+    </div>
+</div>
+
+<div class="search-toolbar w-full flex flex-row bg-slate-100 rounded-md gap-4 px-8 py-2 mb-2 items-center" @onkeyup="HandleKeyUp">
+    <MudTextField @bind-Value="Filter.PURCHASE_ORDER_NUMBER" Placeholder="@L["po_number"]"></MudTextField>
+    <MudTextField @bind-Value="Filter.LINE_NUM" Placeholder="@L["line_no"]"></MudTextField>
+    <MudTextField @bind-Value="Filter.ITEM_NUMBER" Placeholder="@L["po_item_number_short"]"></MudTextField>
+    <MudTextField @bind-Value="Filter.QUANTITY_ORDERED" Placeholder="@L["po_qty_ordered"]"></MudTextField>
+    <MudTextField @bind-Value="Filter.QUANTITY_DELIVERED" Placeholder="@L["po_qty_delivered"]"></MudTextField>
+    <MudTextField @bind-Value="Filter.QUANTITY_REMAINING" Editable="true" Placeholder="@L["po_qty_remaining"]" />
+    <MudTextField @bind-Value="Filter.PO_DATE" Placeholder="@L["po_date"]"></MudTextField>
+    <MudTextField @bind-Value="Filter.SHIP_BY_DATE" Placeholder="@L["po_ship_by_date"]"></MudTextField>
+    <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Outlined" Size="Size.Small" Class="py-0 px-6" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Search" OnClick=@OnSearch>@L["search"]</MudButton>
+    <MudButton ButtonType="ButtonType.Reset" Variant="Variant.Outlined" Size="Size.Small" Class="py-0 px-6" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Close" OnClick=@OnClearFilters>@L["clear"]</MudButton>
+</div>
+<MudTable @ref="table" ServerData="@(new Func<TableState, Task<TableData<POLine>>>(LoadPOLinesAsync))"
+          Dense="true"
+          Hover="true"
+          Loading="_loading"
+          LoadingProgressColor="Color.Info"
+          Breakpoint="Breakpoint.Sm"
+          FixedHeader="true"
+          Bordered="false"
+          Outlined="true"
+          Striped="true"
+          MultiSelection=false
+          ReadOnly=true>
+    <HeaderContent>
+        <MudTh Class="pl-5"><MudTableSortLabel SortBy="new Func<POLine, object>(x=>x.POHeader.PURCHASE_ORDER_NUMBER)">@L["po_number"]</MudTableSortLabel></MudTh>
+        <MudTh Class="text-center"><MudTableSortLabel SortBy="new Func<POLine, object>(x=>x.LINE_NUM)">@L["line_no"]</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<POLine, object>(x=>x.Stock?.ITEM_NUMBER)">@L["po_item_number_short"]</MudTableSortLabel></MudTh>
+        <MudTh Class="text-right"><MudTableSortLabel SortBy="new Func<POLine, object>(x=>x.QUANTITY_ORDERED)">@L["po_qty_ordered"]</MudTableSortLabel></MudTh>
+        <MudTh Class="text-right"><MudTableSortLabel SortBy="new Func<POLine, object>(x=>x.QUANTITY_DELIVERED)">@L["po_qty_delivered"]</MudTableSortLabel></MudTh>
+        <MudTh Class="text-right"><MudTableSortLabel SortBy="new Func<POLine, object>(x=>x.QUANTITY_REMAINING)">@L["po_qty_remaining"]</MudTableSortLabel></MudTh>
+        <MudTh Class="text-right"><MudTableSortLabel SortBy="new Func<POLine, object>(x=>x.POHeader.PO_DATE.Value.ToShortDateString())">@L["po_date"]</MudTableSortLabel></MudTh>
+        <MudTh Class="text-right"><MudTableSortLabel SortBy="new Func<POLine, object>(x=> x.SHIP_BY_DATE)">@L["po_ship_by_date"]</MudTableSortLabel></MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd Class="pl-5">
+            @if (authService.User.HasAccess(new string[] { Permissions.Orders.View }))
+            {
+                <MudLink Class="text-sm" Href="@($"orders/details/{@context.PO_LINE_ID}")">@context.POHeader.PURCHASE_ORDER_NUMBER</MudLink>
+            }
+            else
+            {
+                <MudText Class="text-sm">@context.POHeader.PURCHASE_ORDER_NUMBER</MudText>
+            }
+        </MudTd>
+        <MudTd Class="text-center pr-12">@context.LINE_NUM</MudTd>
+        <MudTd Class="font-mono pr-12">@context.Stock?.ITEM_NUMBER</MudTd>
+        <MudTd Class="text-right pr-12">@context.QUANTITY_ORDERED</MudTd>
+        <MudTd Class="text-right pr-12">@context.QUANTITY_DELIVERED</MudTd>
+        <MudTd Class="text-right pr-12">@context.QUANTITY_REMAINING</MudTd>
+        <MudTd Class="text-right pr-13">@context.POHeader.PO_DATE.Value.ToShortDateString()</MudTd>
+        <MudTd Class="text-right pr-11">@context.SHIP_BY_DATE</MudTd>
+    </RowTemplate>
+    <PagerContent>
+        <span class='absolute float-left m-4'>@L["po_list_legend"]</span>
+        <MudTablePager RowsPerPageString=@L["rows_per_page"] />
+        @*<MudTablePager RowsPerPageString="Totali" PageSizeOptions="new int[] { 10, 25, 50, 100, int.MaxValue }" InfoFormat="@($"{infoFormat}")" HorizontalAlignment="HorizontalAlignment.End" />*@
+    </PagerContent>
+</MudTable>
+
+@*@code {
+    private string infoFormat = "{first_item}-{last_item} of {all_items}";
+}*@

@@ -1,0 +1,112 @@
+﻿@*****************************************************************************
+
+* Copyright (c) 2024 iRobot Corporation. All Rights Reserved.
+*****************************************************************************@
+
+@page "/callback"
+
+@layout EmptyLayout
+
+@using Newtonsoft.Json;
+@using iWip.Client.Components.Shared.Dialogs
+@using iWip.Client.Services.Auth
+@using iWip.Infrastructure.Services.Auth
+@using iWip.Infrastructure.Models.Users;
+@inject IConfiguration configuration;
+@inject IAuthService authService
+@inject AuthenticationStateProvider authStateProvider
+@inject IJSRuntime JS
+@inject IStringLocalizer<Resource> L
+@inject IDialogService Dialog
+@inject NavigationManager navigation;
+
+@code {
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Show loading
+        var options = new DialogOptions
+            {
+                NoHeader = false,
+                DisableBackdropClick = true,
+                MaxWidth = MaxWidth.Small,
+                FullWidth = true,
+            };
+
+        var dialogParameters = new DialogParameters<LoadingDialog>();
+        dialogParameters.Add("Title", "Authenticating");
+        dialogParameters.Add("Body", "Please wait...");
+
+        await Dialog.ShowAsync<LoadingDialog>("", dialogParameters, options);
+
+        var uri = new Uri(NavigationManager.Uri);
+        var query = uri.Query;
+
+        if (!string.IsNullOrEmpty(query))
+        {
+            string baseUrl = configuration["Okta:URL"],
+                    clientId = configuration["Okta:ClientId"],
+                    redirectUrl = $"{navigation.BaseUri}callback",
+                    responseType = "id_token";
+
+            await JS.InvokeVoidAsync("initializeOkta", baseUrl, clientId, redirectUrl, responseType);
+
+            // // Parse the query string to extract the code parameter
+            // var parameters = System.Web.HttpUtility.ParseQueryString(query);
+            // string code = parameters["code"];
+
+            // if (parameters is not null)
+            // {
+            //     if (!string.IsNullOrEmpty(code))
+            //     {
+            var jsonString = await JS.InvokeAsync<string>("handleOktaCallback", DotNetObjectReference.Create(this));
+            dynamic dynamicObject = JsonConvert.DeserializeObject(jsonString);
+
+            string name = dynamicObject?.idToken?.claims?.name;
+            string firstName = string.Empty,
+                   lastName = string.Empty;
+
+            if (!string.IsNullOrEmpty(name))
+            {
+                var nameParts = name.Replace(",", "").Split(" ");
+                if (nameParts.Length >= 2)
+                {
+                    firstName = nameParts[1];
+                    lastName = nameParts[0];
+                }
+
+
+                var result = await authService.LoginWithOKTAAsync(new CreateUpdateUserDto
+                    {
+                        Sub = dynamicObject.idToken.claims.sub,
+                        Email = dynamicObject.idToken.claims.email,
+                        FirstName = firstName,
+                        LastName = lastName,
+                        IsHost = true,
+                        IsActive = true
+                    });
+
+                if (result.HttpStatusCode == System.Net.HttpStatusCode.OK)
+                {
+                    result.Response.AccessToken = dynamicObject.idToken.idToken;
+
+                    authService.SetUserFromLocalStorage(result.Response);
+                    await ((AuthStateProvider)authStateProvider).UpdateAuthenticationState(result.Response);
+
+                    NavigationManager.NavigateTo("/");
+                }
+                else
+                {
+                    Snackbar.Add(L["authentication_failed"], Severity.Error);
+                    NavigationManager.NavigateTo("/authentication/login");
+                }
+
+            }
+            //     }
+            // }
+
+            await base.OnInitializedAsync();
+        }
+    }
+
+}

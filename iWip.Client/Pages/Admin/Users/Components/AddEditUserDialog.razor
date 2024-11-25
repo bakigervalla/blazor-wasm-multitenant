@@ -1,0 +1,224 @@
+﻿@*****************************************************************************
+
+* Copyright (c) 2024 iRobot Corporation. All Rights Reserved.
+*****************************************************************************@
+
+@using System.Net;
+@using iWip.Client.Components.Shared.Dialogs;
+@using iWip.Client.Models.Users;
+@using iWip.Infrastructure.Common;
+@using iWip.Infrastructure.Models.Users;
+@using iWip.Infrastructure.Models.Tenants;
+@using iWip.Infrastructure.Services.Auth;
+@using iWip.Infrastructure.Services.Users;
+@using permissions = iWip.Infrastructure.Common.Constants.Permission;
+@inject IStringLocalizer<Resource> L
+@inject IMapper _mapper;
+@inject IAuthService authService
+
+<MudDialog Class="w-1/4 pb-4 px-4">
+    <DialogContent>
+        <MudForm Model="@Model" @ref="@form" ValidationDelay="0" Class="flex flex-col gap-4">
+
+            <MudItem Class="users">
+                <label>@L["role"]</label>
+                <MudSelect T="int" MultiSelection=false
+                           Variant="Variant.Outlined"
+                           Margin="Margin.Dense"
+                           SelectedValues="@SelectedRoles"
+                           ValueChanged="@OnSelectedRoleChanged">
+                    @foreach (var role in Roles)
+                    {
+                        <MudSelectItem Value="@role.ID">@role.Name</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+
+            @if (Model.Roles != null && Model.Roles.Any(x => x.Name.Contains("Tenant")))
+            {
+                <MudItem>
+                    <TenantsLookup Item="@User?.Tenant"
+                                   OnValueChanged="SetTenant" />
+                </MudItem>
+            }
+            <MudItem>
+                <label>@L["email"]</label>
+                <MudTextField @bind-Value="Model.Email"
+                              For="@(() => Model.Email)"
+                              Immediate="true"
+                              MaxLength="85"
+                              Disabled=@IsEditMode
+                              Variant="Variant.Outlined"
+                              Margin="Margin.Dense" />
+            </MudItem>
+            <MudItem>
+                <label>@L["first_name"]</label>
+                <MudTextField @bind-Value="Model.FirstName"
+                              For="@(() => Model.FirstName)"
+                              Immediate="true"
+                              MaxLength="30"
+                              Variant="Variant.Outlined"
+                              Margin="Margin.Dense" />
+            </MudItem>
+            <MudItem>
+                <label>@L["last_name"]</label>
+                <MudTextField @bind-Value="Model.LastName"
+                              For="@(() => Model.LastName)"
+                              Immediate="true"
+                              MaxLength="85"
+                              Variant="Variant.Outlined"
+                              Margin="Margin.Dense" />
+            </MudItem>
+            <MudItem>
+                <MudCheckBox For="@(() => Model.IsActive)" @bind-Checked="Model.IsActive" Label="@L["is_active"]" Color="Color.Primary" Class="ml-n1"></MudCheckBox>
+            </MudItem>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <div class="flex w-full">
+            <div class="w-1/2">
+                <MudButton OnClick="Cancel">@L["cancel"]</MudButton>
+            </div>
+            <div class="@(IsEditMode ? "w-1/2 text-right" : "w-full text-right")">
+                @if (authService.User.IsInRole(new string[] { permissions.Roles.Role.HostAdmin, permissions.Roles.Role.TenantAdmin }))
+                {
+                    if (IsEditMode)
+                    {
+                        <MudButton Color="Color.Error" Class="ml-4" Disabled=@_deleting OnClick="@(async () => await Delete())">@DeleteButton</MudButton>
+                    }
+                    <MudButton Color="Color.Primary" Disabled=@_saving OnClick="Submit">@SaveButton</MudButton>
+                }
+            </div>
+        </div>
+
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private static string DefaultDragClass = "relative rounded-lg border-2 border-dashed pa-4 mt-4 mud-width-full mud-height-full z-10";
+    private string DragClass = DefaultDragClass;
+
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; }
+    [Parameter] public User User { get; set; }
+    [Parameter] public bool IsEditMode { get; set; }
+
+    [Inject] private IUsersService UserService { get; set; }
+
+    MudForm form;
+    private CreateUpdateUser Model = new();
+    private IEnumerable<Role> Roles { get; set; } = Enumerable.Empty<Role>();
+    private IEnumerable<int> SelectedRoles { get; set; } = Enumerable.Empty<int>();
+
+    private string IsHostUserSwitchLabel => Model.IsHost ? L["irobot"] : L["tenant"];
+    private string IsAdminSwitchLabel => Model.IsAdmin ? L["admin"] : L["user"];
+    private bool _saving;
+    private bool _deleting;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadRolesAsync();
+
+        if (IsEditMode)
+            Model = _mapper.Map<CreateUpdateUser>(User);
+        else
+            User = new User { Tenant = new() };
+
+        if (Model.UserRoles != null)
+            SelectedRoles = Model.UserRoles.Select(x => x.RoleID);
+        else
+            SelectedRoles = new HashSet<int>() { { Roles.Last().ID } };
+    }
+
+    void Cancel() => MudDialog.Cancel();
+
+
+    private async Task Submit()
+    {
+        await form.Validate();
+
+        if (form.IsValid)
+        {
+            _saving = true;
+
+            var userDto = _mapper.Map<CreateUpdateUserDto>(Model);
+
+            HttpResponse<string> response;
+
+            if (IsEditMode)
+                response = await UserService.UpdateAsync(userDto);
+            else
+                response = await UserService.AddNewAsync(userDto);
+
+            if (response.HttpStatusCode == HttpStatusCode.Conflict)
+                Snackbar.Add(string.Format(L["user_already_exists"], Model.Email), Severity.Error);
+            else if (response.HttpStatusCode != HttpStatusCode.OK)
+                Snackbar.Add(string.Format(L["create_user_failed"], Model.Email), Severity.Error);
+            else
+            {
+                Snackbar.Add(string.Format(IsEditMode ? L["user_updated"] : L["user_created"], Model.Email), Severity.Success);
+                MudDialog.Close();
+            }
+
+            _saving = false;
+        }
+    }
+
+    private async Task Delete()
+    {
+        _deleting = true;
+
+        var parameters = new DialogParameters();
+        parameters.Add("ContentText", L[$"user_delete_confirm"].ToString());
+        var dialogresult = DialogService.Show<DialogConfirm>(L["delete"], parameters);
+        var result = await dialogresult.Result;
+
+        if (!result.Cancelled && bool.TryParse(result.Data.ToString(), out bool resultbool))
+        {
+            var response = await UserService.DeleteAsync(Model.Id);
+
+            if (response.HttpStatusCode != HttpStatusCode.OK)
+                Snackbar.Add(L["user_delete_failed"], Severity.Error);
+            else
+                MudDialog.Close();
+        }
+
+        _deleting = false;
+
+    }
+
+    private async Task SetTenant(Tenant e)
+    {
+        if (e is null)
+        {
+            Model.Manufacturer = null;
+            User.Tenant = null;
+        }
+        else
+        {
+            Model.Manufacturer = e.ID;
+            User.Tenant = e;
+        }
+    }
+
+    private async Task LoadRolesAsync()
+    {
+        Roles = await UserService.GetRolesAsync();
+    }
+
+    private async Task OnSelectedRoleChanged(int roleId)
+    {
+        var _role = Roles.First(x => x.ID == roleId);
+
+        Model.UserRoles = new List<UserRole>() { new UserRole { RoleID = _role.ID, UserID = Model.Id } };
+        Model.Roles = new List<Role> { new Role { ID = _role.ID, Name = _role.Name, MANUFACTURER = _role.MANUFACTURER, Description = _role.Description, Permissions = _role.Permissions, Tenant = _role.Tenant, Status = _role.Status } };
+
+        SelectedRoles = new HashSet<int>() { { roleId } };
+
+        Model.IsHost = _role.Name.Contains("Host") == true;
+        Model.IsAdmin = _role.Name.Contains("Admin") == true; ;
+    }
+
+    private string SaveButton { get => _saving ? L["saving"] : L["save"]; }
+    private string DeleteButton { get => _deleting ? L["deleting"] : L["delete"]; }
+
+}

@@ -1,0 +1,42 @@
+﻿@*****************************************************************************
+
+* Copyright (c) 2024 iRobot Corporation. All Rights Reserved.
+*****************************************************************************@
+
+<div Class="@($"flex flex-col {ClassNames}")">
+    @if (!string.IsNullOrEmpty(Icon))
+    {
+        <MudIcon Icon="@Icon" Size="Size.Large" Color="Color.Default" />
+    }
+    @if (!string.IsNullOrEmpty(Title))
+    {
+        <MudText Typo="Typo.h6">@Title</MudText>
+    }
+    <MudText Class="@ClassSubtitle" Typo="Typo.body2">@(new MarkupString(Subtitle))</MudText>
+    @if (ButtonOptions is not null)
+    {
+        <MudButton Size="@ButtonOptions.Size" Variant="@ButtonOptions.Variant" Color="@ButtonOptions.Color" OnClick="@OnButtonClick" Class="@ButtonOptions.Class">@ButtonOptions.Text</MudButton>
+    }
+</div>
+
+@code {
+    [Parameter] public string Icon { get; set; }
+    [Parameter] public string Title { get; set; }
+    [Parameter] public string ClassSubtitle { get; set; }
+    [Parameter] public string Subtitle { get; set; }
+    [Parameter] public ButtonOption? ButtonOptions { get; set; }
+    [Parameter] public string ClassNames { get; set; }
+    [Parameter] public EventCallback OnButtonClick { get; set; }
+
+    public class ButtonOption
+    {
+        public Size Size { get; set; } = Size.Medium;
+        public string Text { get; set; } = "Ok";
+        public string Class { get; set; } = "";
+        public Variant Variant { get; set; } = Variant.Filled;
+        public Color Color { get; set; } = Color.Primary;
+        
+    }
+}
+
+    

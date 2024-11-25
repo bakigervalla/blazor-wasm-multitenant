@@ -1,0 +1,96 @@
+﻿@*****************************************************************************
+
+* Copyright (c) 2024 iRobot Corporation. All Rights Reserved.
+*****************************************************************************@
+
+@page "/admin/tenants"
+
+@using iWip.Client.Common.Extensions;
+@using iWip.Client.Common.Helpers;
+@using iWip.Infrastructure.Common.Constants.Permission;
+@using iWip.Infrastructure.Models.Tenants;
+@using iWip.Infrastructure.Services.Auth;
+@inject NavigationManager navigationManager;
+@inject IStringLocalizer<Resource> L;
+@inject IAuthService authService
+
+@attribute [Authorize(Roles = $"{Roles.Role.HostAdmin}, {Roles.Role.TenantAdmin}")]
+
+<PageTitle>@L["tenants"]</PageTitle>
+<style>
+    .mud-table-container {
+        overflow: auto;
+    }
+</style>
+
+<div class="flex flex-row mb-12">
+    <div class="w-5/6">
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Workspaces" Size="Size.Large" />
+            @L["tenants"]
+        </MudText>
+    </div>
+    <div class="w-1/6">
+        @if (authService.User.IsInRole(new string[] { Roles.Role.HostAdmin }))
+        {
+            <MudButton Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Add" Color="Color.Primary" DisableElevation="true" OnClick="@(() => AddEditTenant(false))">
+                @L["tenant_new"]
+            </MudButton>
+        }
+    </div>
+</div>
+
+<div class="search-toolbar w-full flex flex-row bg-slate-100 rounded-md gap-4 px-8 py-2 mb-2 items-center" @onkeyup="HandleKeyUp">
+    <MudTextField @bind-Value="Filter.ID" Placeholder="@L["manufacturer_number"]"></MudTextField>
+    <MudTextField @bind-Value="Filter.ShortName" Placeholder="@L["short_name"]"></MudTextField>
+    <MudTextField @bind-Value="Filter.Name" Placeholder="@L["long_name"]"></MudTextField>
+    <MudTextField @bind-Value="Filter.Email" Placeholder="@L["irobot_email"]"></MudTextField>
+    <MudTextField @bind-Value="Filter.ContactPerson" Placeholder="@L["irobot_contact"]"></MudTextField>
+    <MudTextField @bind-Value="Filter.UpdateDate" Editable="true" Placeholder="@L["update_date"]" />
+</div>
+<MudTable @ref="table" ServerData="@(new Func<TableState, Task<TableData<Tenant>>>(LoadTenantsAsync))"
+          Dense="true"
+          Hover="true"
+          Loading="_loading"
+          LoadingProgressColor="Color.Info"
+          Breakpoint="Breakpoint.Sm"
+          FixedHeader="true"
+          Bordered="false"
+          Outlined="true"
+          Striped="true"
+          MultiSelection=false
+          ReadOnly=true>
+    <HeaderContent>
+        @if (authService.User.IsInRole(new string[] { Roles.Role.HostAdmin }))
+        {
+            <MudTh></MudTh>
+        }
+        <MudTh><MudTableSortLabel SortBy="new Func<Tenant, object>(x=>x.ID)">@L["manufacturer_number"]</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<Tenant, object>(x=>x.ShortName)">@L["short_name"]</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<Tenant, object>(x=>x.Name)">@L["long_name"]</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<Tenant, object>(x=>x.Email)">@L["irobot_email"]</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<Tenant, object>(x=>x.ContactPerson)">@L["irobot_contact"]</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<Tenant, object>(x=>x.LAST_UPDATED_BY)">@L["updated_by"]</MudTableSortLabel></MudTh>
+        <MudTh Class="text-center"><MudTableSortLabel SortBy="new Func<Tenant, object>(x=>x.Users.Count)">@L["total_users"]</MudTableSortLabel></MudTh>
+        <MudTh Class="text-right"><MudTableSortLabel SortBy="new Func<Tenant, object>(x=>x.LAST_UPDATE_DATE.ToShortDateString())">@L["update_date"]</MudTableSortLabel></MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        @if (authService.User.IsInRole(new string[] { Roles.Role.HostAdmin }))
+        {
+            <MudTd Style="padding-left:1rem; !important;padding-inline-end:0 !important;">
+                <MudIconButton Size="Size.Small" Icon="@Icons.Material.Filled.Edit" Color="@Color.Info" OnClick="@(() => AddEditTenant(true, context))" />
+            </MudTd>
+        }
+        <MudTd>@context.ID</MudTd>
+        <MudTd>@context.ShortName</MudTd>
+        <MudTd>@context.Name</MudTd>
+        <MudTd>@context.Email</MudTd>
+        <MudTd Class="pl-5">@context.ContactPerson</MudTd>
+        <MudTd>@context.LAST_UPDATED_BY</MudTd>
+        <MudTd Class="text-center" Style="padding-right:3.2rem">@context.Users.Count</MudTd>
+        <MudTd Class="text-right pr-11">@context.LAST_UPDATE_DATE.ToShortDateString()</MudTd>
+    </RowTemplate>
+    <PagerContent>
+        <MudTablePager RowsPerPageString=@L["rows_per_page"] />
+    </PagerContent>
+</MudTable>

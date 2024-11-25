@@ -1,0 +1,208 @@
+﻿@*****************************************************************************
+
+* Copyright (c) 2024 iRobot Corporation. All Rights Reserved.
+*****************************************************************************@
+
+@page "/authentication/login"
+
+@inject IJSRuntime JS
+@inherits OwningComponentBase
+@using Microsoft.AspNetCore.Identity;
+@using Severity = MudBlazor.Severity
+@using System.Security.Cryptography;
+@using System.Text;
+@using iWip.Client.Common.Constants;
+@using iWip.Client.Models.Auth;
+@using iWip.Client.Pages.Identity;
+@using iWip.Client.Services.Auth;
+@using iWip.Infrastructure.Common.Exceptions;
+@using iWip.Infrastructure.Models.Auth;
+@using iWip.Infrastructure.Services.Auth;
+@using iWip.Infrastructure.Services.Http;
+@using iWip.Infrastructure.Services.Users
+@implements IDisposable
+@inject IStringLocalizer<Resource> L
+@inject IAuthService authService
+@inject IUsersService usersService
+@inject AuthenticationStateProvider authStateProvider
+@inject IMapper _mapper;
+@inject IConfiguration configuration;
+@inject ILocalStorageService LocalStorage;
+@inject NavigationManager navigation;
+
+<PageTitle>@L["login"]</PageTitle>
+
+<AuthorizeView>
+    <NotAuthorized Context="auth">
+        <MudForm Model="@LoginModel" @ref="@_form">
+            <MudText Typo="Typo.h4" GutterBottom="true">@L["signin"]</MudText>
+            <MudTextField T="string"
+                          @bind-Value="LoginModel.UserName" For="@(() => LoginModel.UserName)"
+                          Label="@L["username"]"
+                          Variant="Variant.Outlined"
+                          Required="true"
+                          OnlyValidateIfDirty="true"
+                          Immediate="true"
+                          Class="my-6">
+            </MudTextField>
+
+            <MudTextField @bind-Value="LoginModel.Password" For="@(() => LoginModel.Password)"
+                          Label="@L["password"]"
+                          InputType="@_passwordInput"
+                          OnAdornmentClick=@TogglePasswordVisibility
+                          Adornment="Adornment.End"
+                          AdornmentIcon="@_passwordInputIcon"
+                          Variant="Variant.Outlined"
+                          Required="true">
+            </MudTextField>
+
+            <div Class="d-flex justify-end">
+                <MudLink Href="/authentication/forgot-password" Class="ml-n1 my-3">@L["forgot_password"]</MudLink>
+            </div>
+
+
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       Size="Size.Large"
+                       Disabled="@(_loading)"
+                       ButtonType="ButtonType.Button"
+                       OnClick="@(OnSubmit)"
+                       FullWidth="true">
+                @if (_loading)
+                {
+                    <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                    <MudText Class="ms-2"> @L["loading"]</MudText>
+                }
+                else
+                {
+                    <MudText>@L["signin"]</MudText>
+                }
+            </MudButton>
+        </MudForm>
+        <div class="d-flex justify-space-around flex-grow-1 my-4 gap-4">
+            <MudButton Variant="Variant.Filled"
+                       Class="flex-grow-1"
+                       Disabled="@(_loadingOkta)"
+                       OnClick="LoginWithOkta"
+                       ButtonType="ButtonType.Button"
+                       title="@L["sign_in_with_okta"]">
+                @if (_loadingOkta)
+                {
+                    <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                    <MudText Class="ms-2"> @L["loading"]</MudText>
+                }
+                else
+                {
+                    <MudText>OKTA</MudText>
+                }
+            </MudButton>
+        </div>
+    </NotAuthorized>
+    <Authorized>
+        <RedirectToHome />
+    </Authorized>
+</AuthorizeView>
+
+@code {
+    [Inject]
+    private ILogger<Login> Logger { get; set; } = default!;
+
+    private LoginFormModel LoginModel = new();
+    bool _passwordVisibility;
+    InputType _passwordInput = InputType.Password;
+    string _passwordInputIcon = Icons.Material.Filled.VisibilityOff;
+    MudForm? _form;
+    bool _loading;
+    bool _loadingOkta;
+
+    protected override async Task OnInitializedAsync()
+    {
+        string baseUrl = configuration["Okta:URL"],
+                clientId = configuration["Okta:ClientId"],
+                redirectUrl = $"{navigation.BaseUri}callback",
+                responseType = "id_token";
+
+        await JS.InvokeVoidAsync("initializeOkta", baseUrl, clientId, redirectUrl, responseType);
+    }
+
+    private async Task OnSubmit()
+    {
+        try
+        {
+            _loading = true;
+            await _form!.Validate();
+
+            if (_form!.IsValid)
+            {
+                var loginRequest = _mapper.Map<LoginRequest>(LoginModel);
+
+                var result = await authService.LoginAsync(loginRequest);
+
+                if (result.HttpStatusCode == System.Net.HttpStatusCode.OK)
+                {
+                    await ((AuthStateProvider)authStateProvider).UpdateAuthenticationState(result.Response);
+
+                    var returnUrl = NavigationManager.GetUriWithQueryParameter("returnUrl", "") ?? "";
+                    NavigationManager.NavigateTo(returnUrl);
+                }
+                else if (result.HttpStatusCode == System.Net.HttpStatusCode.Locked)
+                {
+                    // show set new password
+                    var parameters = new DialogParameters();
+                    DialogOptions options = new DialogOptions() { MaxWidth = MaxWidth.Medium, FullWidth = true };
+                    parameters.Add("UserName", LoginModel.UserName);
+                    parameters.Add("SessionId", result.Response.SessionId);
+                    var dialogresult = DialogService.Show<_NewPasswordDialog>
+                        (L["new_password_title"], parameters, options);
+                    var dialogResult = await dialogresult.Result;
+
+                    if (!dialogResult.Cancelled)
+                    {
+                        var data = dialogresult.Result.Status;
+                    }
+                }
+                else
+                {
+                    Snackbar.Add(L["authentication_failed"], Severity.Error);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _loading = false;
+            Snackbar.Add(L["authentication_failed"], Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task LoginWithOkta()
+    {
+        _loadingOkta = true;
+
+        string issuer = configuration["Okta:Authority"],
+                clientId = configuration["Okta:ClientId"],
+                redirectUrl = $"{navigation.BaseUri}authentication/callback",
+                responseType = "id_token";
+
+        await JS.InvokeVoidAsync("loginToOkta", issuer, clientId, redirectUrl, responseType, DotNetObjectReference.Create(this));
+    }
+
+    void TogglePasswordVisibility()
+    {
+        @if (_passwordVisibility)
+        {
+            _passwordVisibility = false;
+            _passwordInputIcon = Icons.Material.Filled.VisibilityOff;
+            _passwordInput = InputType.Password;
+        }
+        else
+        {
+            _passwordVisibility = true;
+            _passwordInputIcon = Icons.Material.Filled.Visibility;
+            _passwordInput = InputType.Text;
+        }
+    }
+}

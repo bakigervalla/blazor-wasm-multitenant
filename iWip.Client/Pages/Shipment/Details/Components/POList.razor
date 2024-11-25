@@ -1,0 +1,94 @@
+﻿@*****************************************************************************
+
+* Copyright (c) 2024 iRobot Corporation. All Rights Reserved.
+*****************************************************************************@
+
+@using iWip.Infrastructure.Common.Constants.Permission;
+@using iWip.Infrastructure.Models.Shipment.Response;
+@using iWip.Infrastructure.Models.Shipment;
+@using iWip.Infrastructure.Services.Auth;
+@using iWip.Infrastructure.Services.Shipment;
+@using iWip.Client.Common.Extensions;
+@using iWip.Infrastructure.Common.Pagination;
+@using iWip.Infrastructure.Models.Orders;
+@using iWip.Infrastructure.Services.PurchaseOrders;
+@inject IStringLocalizer<Resource> L;
+@inject IAuthService authService
+
+@*RowClassFunc="@HightlightIsInContainer"*@
+<MudTable @ref="table"
+          Items="@Items"
+          Virtualize="true"
+          Dense="true"
+          Hover="true"
+          Loading="_loading"
+          LoadingProgressColor="Color.Info"
+          Breakpoint="Breakpoint.Sm"
+          FixedHeader="true"
+          Bordered="false"
+          Outlined="true"
+          Striped="true"
+          MultiSelection=false
+          ReadOnly=true
+          HorizontalScrollbar=true
+          Class="grid"
+          Height="200px">
+    <HeaderContent>
+        <MudTh Class="!pr-0 whitespace-nowrap"><MudTableSortLabel SortBy="new Func<ShippedOrders, object>(x=>x.CONTAINER_NUMBER)">@L["container_no"]</MudTableSortLabel></MudTh>
+        <MudTh Class="!pr-0 whitespace-nowrap"><MudTableSortLabel SortBy="new Func<ShippedOrders, object>(x=>x.PURCHASE_ORDER_NUMBER)">@L["po_number"]</MudTableSortLabel></MudTh>
+        <MudTh Class="!px-0 whitespace-nowrap"><MudTableSortLabel SortBy="new Func<ShippedOrders, object>(x=>x.LINE_NUM)">@L["line_no"]</MudTableSortLabel></MudTh>
+        <MudTh Class="!px-0 whitespace-nowrap"><MudTableSortLabel SortBy="new Func<ShippedOrders, object>(x=>x.ITEM_NUMBER)">@L["po_item_number_short"]</MudTableSortLabel></MudTh>
+        <MudTh Class="!px-0 whitespace-nowrap"><MudTableSortLabel SortBy="new Func<ShippedOrders, object>(x=>x.ITEM_DESCRIPTION)">@L["description"]</MudTableSortLabel></MudTh>
+        <MudTh Class="!px-0 whitespace-nowrap"><MudTableSortLabel SortBy="new Func<ShippedOrders, object>(x=>x.PO_ORDER_TYPE)">@L["po_type"]</MudTableSortLabel></MudTh>
+        <MudTh Class="!px-0 whitespace-nowrap"><MudTableSortLabel SortBy="new Func<ShippedOrders, object>(x=>x.SHIP_TO_SITE_REGION)">@L["region"]</MudTableSortLabel></MudTh>
+        <MudTh Class="!px-0 whitespace-nowrap"><MudTableSortLabel SortBy="new Func<ShippedOrders, object>(x=>x.SHIP_TO_LOCATION)">@L["ship_to_address"]</MudTableSortLabel></MudTh>
+        <MudTh Class="text-right !p-0 whitespace-nowrap"><MudTableSortLabel SortBy="new Func<ShippedOrders, object>(x=>x.QUANTITY_ORDERED)">@L["po_qty_ordered"]</MudTableSortLabel></MudTh>
+        <MudTh Class="text-right !p-0 whitespace-nowrap"><MudTableSortLabel SortBy="new Func<ShippedOrders, object>(x=>x.QUANTITY_DELIVERED)">@L["po_qty_delivered"]</MudTableSortLabel></MudTh>
+        <MudTh Class="text-right !p-0 whitespace-nowrap"><MudTableSortLabel SortBy="new Func<ShippedOrders, object>(x=>x.QUANTITY_IN_CONTAINER)">@L["qty_loaded"]</MudTableSortLabel></MudTh>
+        <MudTh Class="text-right !p-0 whitespace-nowrap"><MudTableSortLabel SortBy="new Func<ShippedOrders, object>(x=>x.QUANTITY_REMAINING)">@L["po_qty_remaining"]</MudTableSortLabel></MudTh>
+        <MudTh Class="text-right !p-0 whitespace-nowrap"><MudTableSortLabel SortBy="new Func<ShippedOrders, object>(x=>x.PO_DATE.Value.ToShortDateString())">@L["po_date"]</MudTableSortLabel></MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd Class="pl-5">
+            @if (authService.User.HasAccess(new string[] { Permissions.Shipments.View }))
+            {
+                <MudLink Class="text-sm" Href="@($"containers/edit/{@context.CONTAINER_ID}/content")">@context.CONTAINER_NUMBER</MudLink>
+            }
+            else
+            {
+                <MudText Class="text-sm">@context.CONTAINER_NUMBER</MudText>
+            }
+        </MudTd>
+        <MudTd>
+            @if (authService.User.HasAccess(new string[] { Permissions.Shipments.View }))
+            {
+                <MudLink Class="text-sm" Href="@($"orders/details/{@context.PO_LINE_ID}")">@context.PURCHASE_ORDER_NUMBER</MudLink>
+            }
+            else
+            {
+                <MudText Class="text-sm">@context.PURCHASE_ORDER_NUMBER</MudText>
+            }
+        </MudTd>
+        <MudTd Class="!pl-0 text-center">@context.LINE_NUM</MudTd>
+        <MudTd Class="font-mono !pl-0">@context.ITEM_NUMBER</MudTd>
+        <MudTd Class="!p-0 whitespace-nowrap" title="@context.ITEM_DESCRIPTION">@context.ITEM_DESCRIPTION.Truncate(35)</MudTd>
+        <MudTd Class="!pl-0 text-center">@context.PO_ORDER_TYPE</MudTd>
+        <MudTd Class="pl-0">@context.SHIP_TO_SITE_REGION</MudTd>
+        <MudTd Class="!pl-0 whitespace-nowrap">@context.SHIP_TO_LOCATION</MudTd>
+        <MudTd Class="text-right pl-0 pr-6">@context.QUANTITY_ORDERED</MudTd>
+        <MudTd Class="text-right pl-0 pr-6">@context.QUANTITY_DELIVERED</MudTd>
+        <MudTd Class="text-right pl-0 pr-6">@context.QUANTITY_IN_CONTAINER</MudTd>
+        <MudTd Class="text-right pl-0 pr-6">@context.QUANTITY_REMAINING</MudTd>
+        <MudTd Class="text-right pl-0 pr-6">@context.PO_DATE.Value.ToShortDateString()</MudTd>
+    </RowTemplate>
+</MudTable>
+
+@code {
+    private MudTable<ShippedOrders> table;
+
+    [Parameter] public IList<ShippedOrders> Items { get; set; }
+    private SearchShippedOrdersParameters Filter { get; set; } = new();
+    private bool IsSearch;
+    private bool resetPaging;
+    private bool _loading;
+}

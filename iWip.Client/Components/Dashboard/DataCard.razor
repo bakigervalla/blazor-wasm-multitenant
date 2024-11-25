@@ -1,0 +1,62 @@
+@*****************************************************************************
+
+* Copyright (c) 2024 iRobot Corporation. All Rights Reserved.
+*****************************************************************************@
+
+@using System.Globalization
+@using iWip.Infrastructure.Models.Dashboard;
+@inherits MudComponentBase
+
+<MudElement @attributes="@UserAttributes"
+            Class="@Classname"
+            Style="@Style">
+    <MudPaper Class="pa-4"
+              Elevation="2"
+              Style="height: 100px">
+        <div class="align-center d-flex"
+             style="height: 100%">
+            <div class="d-flex flex-column">
+                <MudText Class="light-bold mb-3">@Title</MudText>
+                <div class="flex justify-start items-center">
+                    @if (Summary is not null)
+                    {
+                        <MudText Class="mr-6 strong-bold" Typo="Typo.h4">
+                            @Summary?.Quantity?.ToString("N0", CultureInfo.InvariantCulture)
+                        </MudText>
+                        @if (Summary?.Percentage > 0)
+                        {
+                            <MudText Class="light-bold">
+                                @($"{Summary?.Percentage}%")
+                            </MudText>
+
+                        }
+                    }
+                    else
+                    {
+                        <MudText Class="mr-6 strong-bold" Typo="Typo.h4">
+                            0
+                        </MudText>
+                    }
+                </div>
+            </div>
+            <MudSpacer />
+            @if (_chartOptions != null)
+            {
+                <ApexChart ChartId="@ChartId"
+                           ChartOptions="_chartOptions"
+                           TCategory="int"
+                           TSeries="SeriesModel<int>" />
+            }
+        </div>
+    </MudPaper>
+</MudElement>
+
+<style>
+    .light-bold {
+        font-weight: 500;
+    }
+
+    .strong-bold {
+        font-weight: 700;
+    }
+</style>

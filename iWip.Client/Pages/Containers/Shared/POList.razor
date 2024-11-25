@@ -1,0 +1,58 @@
+﻿@*****************************************************************************
+
+* Copyright (c) 2024 iRobot Corporation. All Rights Reserved.
+*****************************************************************************@
+
+@using iWip.Client.Common.Extensions;
+@using iWip.Infrastructure.Models.Containers;
+@inject IStringLocalizer<Resource> L
+
+@if (Items is not null)
+{
+    @if (IsEditMode)
+    {
+        <div class="flex justify-center mb-8">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="w-56" Size="Size.Small" OnClick="@OnEdit">@L["container_management"]</MudButton>
+        </div>
+    }
+    <InfoBox Subtitle="@string.Format("{0} {1}", L["container_contents"], string.IsNullOrEmpty(Region) ? "" : $"({Region})")" ClassSubtitle="font-medium py-1" />
+    <MudTable Items="@Items"
+              Dense="true"
+              Hover="true"
+              Breakpoint="Breakpoint.Sm"
+              FixedHeader="true"
+              Bordered="false"
+              Outlined="false"
+              Striped="true"
+              ReadOnly=true
+              Height="20rem">
+        <HeaderContent>
+            <MudTh>@L["po_number"]</MudTh>
+            <MudTh Class="text-right">@L["line_no"]</MudTh>
+            @if (ShowExtraFields)
+            {
+                <MudTh>@L["description"]</MudTh>
+                <MudTh>@L["sku"]</MudTh>
+            }
+            <MudTh Class="text-right">@L["qty"]</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.PURCHASE_ORDER_NUMBER</MudTd>
+            <MudTd Class="text-right">@context.POLine.LINE_NUM</MudTd>
+            @if (ShowExtraFields)
+            {
+                <MudTd title="@context.POLine.ITEM_DESCRIPTION">@context.POLine.ITEM_DESCRIPTION.Truncate(75)</MudTd>
+                <MudTd>@context.POLine.SKU</MudTd>
+            }
+            <MudTd Class="text-right">@context.QTY_SHIPPED</MudTd>
+        </RowTemplate>
+    </MudTable>
+}
+
+@code {
+    [Parameter] public IEnumerable<iWip.Infrastructure.Models.Containers.ContainerContent> Items { get; set; }
+    [Parameter] public string Region { get; set; }
+    [Parameter] public bool IsEditMode { get; set; } = false;
+    [Parameter] public EventCallback OnEdit { get; set; }
+    [Parameter] public bool ShowExtraFields { get; set; } = true;
+}

@@ -1,0 +1,14 @@
+﻿/*****************************************************************************
+
+* Copyright (c) 2024 iRobot Corporation. All Rights Reserved.
+*****************************************************************************/
+
+.containers-table td.icon-column {
+    padding: 0.5rem !important;
+    padding-inline-end: 0 !important;
+    /*padding: 6px 0px 6px 0px;*/
+}
+
+.details-container:hover {
+    background-color: transparent !important;
+}

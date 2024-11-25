@@ -1,0 +1,108 @@
+﻿@*****************************************************************************
+
+* Copyright (c) 2024 iRobot Corporation. All Rights Reserved.
+*****************************************************************************@
+
+@using System.Linq.Expressions;
+@using iWip.Infrastructure.Models.Tenants;
+@using iWip.Infrastructure.Services.Tenants;
+@using iWip.Client.Services.Common;
+@inject SharedService SharedService;
+@inject IStringLocalizer<Resource> L
+
+<MudAutocomplete @ref="_mudAuto"
+                 CoerceText="true"
+                 SearchFunc="@Search"
+                 ToStringFunc="@(state => state.DisplayName)"
+                 MaxItems=100
+                 T="Tenant"
+                 Value="Item"
+                 ResetValueOnEmptyText="true"
+                 Immediate="true"
+                 Variant="Variant.Outlined"
+                 Margin="Margin.Dense"
+                 IsOpenChanged="@((e) => OnPopupChanged.InvokeAsync(e))"
+                 Class="tenant-switch"
+                 Placeholder="@L["select_tenant"]"
+                 ValueChanged="@((e) => OnValueChanged.InvokeAsync(e))">
+    <ItemTemplate>
+        <div class="grid grid-cols-[10%_80%] items-center">
+            <MudImage Src="@string.Format("data:image/jpeg;base64,{0}", Convert.ToBase64String(context.Logo))" Alt="Logo" Elevation="25" Class="h-8 w-8" ObjectFit="ObjectFit.ScaleDown" />
+            <MudText Class="d-flex justify-start text-left text-gray-900" Typo="Typo.body2">
+                @context.DisplayName
+            </MudText>
+        </div>
+    </ItemTemplate>
+    <NoItemsTemplate>
+        <MudText Align="Align.Center" Class="px-4 py-1">
+            @L["autocomplete_empty_list_help_text"]
+        </MudText>
+    </NoItemsTemplate>
+</MudAutocomplete>
+
+<style>
+    .tenant-switch .mud-input-outlined-border {
+        border: none !important;
+    }
+
+    .tenant-switch .mud-select-input {
+        width: calc(80% + 10px) !important;
+    }
+</style>
+
+@code {
+    [Parameter] public Tenant Item { get; set; }
+    [Parameter] public EventCallback<Tenant> OnValueChanged { get; set; }
+    [Parameter] public EventCallback<bool> OnPopupChanged { get; set; }
+    [Parameter] public bool Open { get; set; }
+
+    [Inject] private ITenantsService TenantsService { get; set; }
+
+    private IEnumerable<Tenant> Tenants { get; set; }
+    MudAutocomplete<Tenant> _mudAuto;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await GetAllTenantsAsync();
+
+        if (Open)
+            _mudAuto.ToggleMenu();
+
+        SharedService.OnTenantCreateRefreshTenantSwitcher += HandleMethodExecuted;
+    }
+
+    private void HandleMethodExecuted()
+    {
+        Task.Run(async () => await GetAllTenantsAsync());
+    }
+
+    public void Dispose()
+    {
+        SharedService.OnTenantCreateRefreshTenantSwitcher -= HandleMethodExecuted;
+    }
+
+    private async Task GetAllTenantsAsync()
+    {
+        var result = await TenantsService.GetAllTenantsLookupAsync();
+
+        Tenants = result.Select(x => new Tenant
+            {
+                ID = x.ID,
+                ShortName = x.ShortName,
+                Logo = x.Logo
+            });
+    }
+
+    private async Task<IEnumerable<Tenant>> Search(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+            return Tenants;
+
+        var result = Tenants.Where(x => x.DisplayName.Contains(value, StringComparison.InvariantCultureIgnoreCase));
+
+        if (result.Count() > 0)
+            return result;
+
+        return await TenantsService.GetAllTenantsLookupAsync(value);
+    }
+}

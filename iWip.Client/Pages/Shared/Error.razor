@@ -1,0 +1,25 @@
+﻿@*****************************************************************************
+
+* Copyright (c) 2024 iRobot Corporation. All Rights Reserved.
+*****************************************************************************@
+
+@page "/unknown"
+
+@layout MainLayout
+
+<Row Class="d-flex flex-column justify-center" Style="height:calc(100vh - 132px);">
+    <MudContainer Class="d-flex flex-column justify-space-between align-center">
+        <MudImage Src="/img/status/500.png" Width="350" Height="200" />
+        <div class="mt-12 text-btn neutral-lighten-2--text">Server Error.😖</div>
+        <MudButton Class="rounded-pill mt-6"
+                   Color="Color.Primary"
+                   OnClick="@(()=>Navigation.NavigateTo("/"))">
+            Back to home
+        </MudButton>
+    </MudContainer>
+</Row>
+
+@code {
+    [Inject]
+    public NavigationManager Navigation { get; set; } = default!;
+}

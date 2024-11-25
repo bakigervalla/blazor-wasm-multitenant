@@ -1,0 +1,351 @@
+﻿@*****************************************************************************
+
+* Copyright (c) 2024 iRobot Corporation. All Rights Reserved.
+*****************************************************************************@
+
+@using iWip.Client.Common.Extensions;
+@using iWip.Client.Components.Shared.Dialogs;
+@using iWip.Client.Pages.Containers.Shared
+@using iWip.Infrastructure.Common.Constants.Permission;
+@using iWip.Infrastructure.Common.Pagination;
+@using iWip.Infrastructure.Models.Containers;
+@using iWip.Infrastructure.Models.Containers.Requests;
+@using iWip.Infrastructure.Models.Orders;
+@using iWip.Infrastructure.Models.Orders.Requests;
+@using iWip.Infrastructure.Routes;
+@using iWip.Infrastructure.Services.Auth;
+@using iWip.Infrastructure.Services.Containers;
+@using iWip.Infrastructure.Services.PurchaseOrders;
+@using model = iWip.Infrastructure.Models.Containers;
+@inject ISnackbar Snackbar;
+@inject IDialogService DialogService;
+@inject IStringLocalizer<Resource> L
+@inject IMapper _mapper;
+@inject IAuthService authService
+
+<style>
+    .mud-switch-label-small {
+        width: 70px;
+        line-height: 13px;
+    }
+</style>
+
+<div class="flex gap-1">
+    <div class="flex flex-col items-center w-3/4">
+        <InfoBox Title=@L["manage_po_title"]
+                 Subtitle="@Subtitle"
+                 ClassNames="pb-6 w-full"/>
+        <div class="search-toolbar w-full flex flex-row bg-slate-100 rounded-md gap-4 px-8 py-2 mb-2 items-center" @onkeyup="HandleKeyUp">
+            <MudTextField @bind-Value="Filter.PURCHASE_ORDER_NUMBER" Placeholder="@L["po_number"]"></MudTextField>
+            <MudTextField @bind-Value="Filter.LINE_NUM" Placeholder="@L["line_no"]"></MudTextField>
+            <MudTextField @bind-Value="Filter.ITEM_NUMBER" Placeholder="@L["po_item_number_short"]"></MudTextField>
+            <MudTextField @bind-Value="Filter.DESCRIPTION" Placeholder="@L["description"]"></MudTextField>
+            <MudTextField @bind-Value="Filter.SHIP_TO_SITE_REGION" Placeholder="@L["region"]"></MudTextField>
+            <MudTextField @bind-Value="Filter.PO_DATE" Placeholder="@L["po_date"]"></MudTextField>
+            <MudTextField @bind-Value="Filter.SHIP_BY_DATE" Placeholder="@L["po_ship_by_date"]"></MudTextField>
+            <MudSwitch @bind-Checked="@ShowAllFilter" Size="Size.Small" Label="@SwitchLabel" LabelPosition="LabelPosition.End" Color="Color.Primary" />
+        </div>
+
+        @if (!_loading && _table.Items?.Count() == 0)
+        {
+            <InfoBox Title="@L["search_result_is_empty"]"
+                     Icon="@Icons.Material.Filled.ManageSearch"
+                     Subtitle="Purchase Orders list is empty."
+                     ClassNames="items-center justify-center h-full" />
+        }
+        else
+        {
+            <MudTable @ref="_table" ServerData="Items"
+                      Class="po-list-table-attach"
+                      Dense="true"
+                      Hover="true"
+                      Loading="_loading"
+                      LoadingProgressColor="Color.Info"
+                      Breakpoint="Breakpoint.Sm"
+                      FixedHeader="true"
+                      Bordered="false"
+                      Outlined="false"
+                      Striped="true"
+                      MultiSelection=false
+                      ReadOnly=false
+                      RowClassFunc="@HightlightSelected"
+                      Height="520px">
+                <HeaderContent>
+                    <MudTh Style="padding-left:16px !important"><MudTableSortLabel SortBy="new Func<POLine, object>(x=>x.POHeader.PURCHASE_ORDER_NUMBER)">@L["po_number"]</MudTableSortLabel></MudTh>
+                    <MudTh Class="min-w-[5rem]"><MudTableSortLabel SortBy="new Func<POLine, object>(x=>x.LINE_NUM)">@L["line_no"]</MudTableSortLabel></MudTh>
+                    <MudTh Class="min-w-[5rem]"><MudTableSortLabel SortBy="new Func<POLine, object>(x=>x.Stock?.ITEM_NUMBER)">@L["po_item_number_short"]</MudTableSortLabel></MudTh>
+                    <MudTh Class="pl-0"><MudTableSortLabel SortBy="new Func<POLine, object>(x=>x.ITEM_DESCRIPTION)">@L["description"]</MudTableSortLabel></MudTh>
+                    <MudTh Class="text-right"><MudTableSortLabel SortBy="new Func<POLine, object>(x=>x.QUANTITY_ORDERED)">@L["po_qty_ordered"]</MudTableSortLabel></MudTh>
+                    <MudTh Class="text-right"><MudTableSortLabel SortBy="new Func<POLine, object>(x=>x.QUANTITY_DELIVERED)">@L["po_qty_delivered"]</MudTableSortLabel></MudTh>
+                    <MudTh Class="text-right"><MudTableSortLabel SortBy="new Func<POLine, object>(x=>x.QUANTITY_REMAINING)">@L["po_qty_remaining"]</MudTableSortLabel></MudTh>
+                    <MudTh Class="text-right min-w-[8.2rem]"><MudTableSortLabel SortBy="new Func<POLine, object>(x=> x.POHeader.PO_DATE)">@L["po_date"]</MudTableSortLabel></MudTh>
+                    <MudTh Class="text-right min-w-[8.2rem]"><MudTableSortLabel SortBy="new Func<POLine, object>(x=> x.SHIP_BY_DATE)">@L["po_ship_by_date"]</MudTableSortLabel></MudTh>
+                    <MudTh Class="text-right"><MudTableSortLabel SortBy="new Func<POLine, object>(x=>x.QUANTITY_IN_CONTAINER)">@L["qty_loaded"]</MudTableSortLabel></MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd Class="p-0">@context.POHeader.PURCHASE_ORDER_NUMBER</MudTd>
+                    <MudTd>@context.LINE_NUM</MudTd>
+                    <MudTd Class="font-mono !pl-0">@context.Stock?.ITEM_NUMBER</MudTd>
+                    <MudTd Class="text-sm !pl-0" title="@context.ITEM_DESCRIPTION">@context.ITEM_DESCRIPTION.Truncate(35)</MudTd>
+                    <MudTd Class="text-right pr-8 pl-0">@context.QUANTITY_ORDERED</MudTd>
+                    <MudTd Class="text-right pr-8 pl-0">@context.QUANTITY_DELIVERED</MudTd>
+                    <MudTd Class="text-right pr-8 pl-0">@context.QUANTITY_REMAINING</MudTd>
+                    <MudTd Class="text-right pr-8 ps-0 pe-0">@context.POHeader.PO_DATE.Value.ToShortDateString()</MudTd>
+                    <MudTd Class="text-right pr-8 ps-0 pe-0">@context.SHIP_BY_DATE</MudTd>
+                    <MudTd Class="text-right pr-7 pl-0">
+                        @if (authService.User.HasAccess(new string[] { Permissions.ContainerContent.Create, Permissions.ContainerContent.Edit, Permissions.ContainerContent.Delete }))
+                        {
+                            <MudNumericField Class="quantity-input min-w-[4.5rem]" Value="@context.QUANTITY_IN_CONTAINER" ValueChanged="@(async (int e) => await HandleQuantityChanged(e, context))" Required Min="0" />
+                        }
+                    </MudTd>
+                </RowTemplate>
+                <PagerContent>
+                    <span class='absolute float-left m-4'>@L["po_list_legend"]</span>
+                    <MudTablePager RowsPerPageString=@L["rows_per_page"] />
+                </PagerContent>
+            </MudTable>
+        }
+
+    </div>
+    <MudCard Class="flex flex-col w-1/4 p-4 shadow-none">
+        <MudCardHeader Style="padding:16px 0 0 16px">
+            <MudText Typo="Typo.h6">@L["container_details"]</MudText>
+        </MudCardHeader>
+        <MudCardContent Class="grid gap-2">
+            <MudItem Class="flex items-center">
+                <MudText Typo="Typo.body2">
+                    @(
+                        $"{L["shipment"]}: "
+                        )
+                </MudText><MudText Typo="Typo.body2" Class="font-bold pl-2">@Container.Shipping?.HOUSE_BILL_OF_LADING</MudText>
+            </MudItem>
+            <MudItem Class="flex items-center">
+                <MudText Typo="Typo.body2">
+                    @(
+                        $"{L["container_no"]}: "
+                        )
+                </MudText><MudText Typo="Typo.body2" Class="font-bold pl-2">@Container.CONTAINER_NUMBER</MudText>
+            </MudItem>
+            <MudItem Class="flex items-center">
+                <MudText Typo="Typo.body2">
+                    @(
+                        $"{L["container_seal_no"]}: "
+                        )
+                </MudText><MudText Typo="Typo.body2" Class="font-bold pl-2">@Container.SEAL_NUMBER</MudText>
+            </MudItem>
+            <MudItem Class="flex items-center">
+                <MudText Typo="Typo.body2">
+                    @(
+                        $"{L["container_type"]}: "
+                        )
+                </MudText><MudText Typo="Typo.body2" Class="font-bold pl-2">@Container.CONTAINER_TYPE</MudText>
+            </MudItem>
+            <MudItem Class="flex items-center">
+                <MudText Typo="Typo.body2">
+                    @(
+                        $"{L["qty"]}: "
+                        )
+                </MudText><MudText Typo="Typo.body2" Class="font-bold pl-2">@Container.QTY_SHIPPED</MudText>
+            </MudItem>
+            <MudCardActions Class="flex">
+                <MudButton Variant="Variant.Outlined" Color="Color.Default" Size="Size.Small" OnClick="@OnNavigateBack">@L["back"]</MudButton>
+            </MudCardActions>
+            @if (Container?.ContainerContents?.Count > 0)
+            {
+                <MudDivider DividerType="DividerType.Middle" Class="my-2" />
+                <POList ShowExtraFields=false Items="@Container?.ContainerContents" Region="@Filter.Region" />
+            }
+        </MudCardContent>
+    </MudCard>
+</div>
+@code {
+    private MudTable<POLine> _table = new MudTable<POLine>();
+    private string Subtitle { get; set; }
+
+    [Parameter] public Container Container { get; set; }
+    [Parameter] public EventCallback OnNavigateBack { get; set; }
+
+    [Inject] private IPurchaseOrderService POService { get; set; }
+    [Inject] private IContainersService ContainersService { get; set; }
+
+    private Func<TableState, Task<TableData<POLine>>> Items;
+    public MetaData MetaData { get; set; } = new();
+
+    private SearchPOLineParameters Filter { get; set; } = new();
+    private string SwitchLabel => Filter.All ? L["container_content_showing_all"] : L["container_content_showing_remaining"];
+    private bool ShowAllFilter { get => Filter.All; set { Filter.All = value; OnSearch(); } }
+    private string Region { get; set; }
+    private bool resetPaging;
+    private bool _loading;
+    private bool IsSearch;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Region = Container.ContainerContents.Count > 0 ? Container.ContainerContents.First().SHIP_TO_SITE_REGION : "";
+
+        Filter = new SearchPOLineParameters { ContainerId = Container.CONTAINER_ID, Region = Region };
+        Items = new Func<TableState, Task<TableData<POLine>>>(SearchOrders);
+
+        if (Container != null && Container.ContainerContents.Any() && !string.IsNullOrEmpty(Container?.ContainerContents.First().SHIP_TO_SITE_REGION))
+            Subtitle = $"{L["manage_po_title_subtitle"]}<br /><span class='text-orange-500'>Viewing Purchase Orders for the <b>{Container?.ContainerContents.First().SHIP_TO_SITE_REGION}</b> region.</span>";
+        else
+            Subtitle = @L["manage_po_title_subtitle"];
+    }
+
+    private void OnSearch()
+    {
+        IsSearch = true;
+        resetPaging = true;
+        _table.ReloadServerData();
+    }
+
+    private void OnClearFilters()
+    {
+        IsSearch = false;
+        resetPaging = true;
+        Filter = new SearchPOLineParameters { ContainerId = Container.CONTAINER_ID, Region = Region };
+        _table.ReloadServerData();
+    }
+
+    public async Task<TableData<POLine>> SearchOrders(TableState state)
+    {
+        _loading = true;
+
+        if (resetPaging)
+        {
+            state.Page = 0;
+            state.PageSize = new MetaData().PageSize;
+            resetPaging = false;
+        }
+
+        MetaData.CurrentPage = state.Page + 1;
+        MetaData.PageSize = state.PageSize;
+
+        var response = await POService.SearchPOLinesAsync(Filter.SetFilters(IsSearch), Container.CONTAINER_ID, state.PageSize, state.Page + 1);
+        MetaData = response.MetaData;
+
+        if (!IsSearch && response.Data.Count > 0)
+        {
+            Filter.Region = response.Data.First().SHIP_TO_SITE_REGION;
+            StateHasChanged();
+        }
+
+        _loading = false;
+
+        return new TableData<POLine>() { Items = response.Data, TotalItems = response.MetaData.TotalCount };
+    }
+
+    private void HandleKeyUp(KeyboardEventArgs e)
+    {
+        if (e.Code == "Enter" || e.Code == "NumpadEnter")
+            OnSearch();
+        else if (e.Code == "Escape")
+            OnClearFilters();
+    }
+
+    private async Task HandleQuantityChanged(int value, POLine item)
+    {
+        if (value > 0 && !IsSameRegionPORegion(item))
+        {
+            Snackbar.Add(string.Format(L["container_mixed_po_region"]), Severity.Error);
+            return;
+        }
+
+        if (value > item.QUANTITY_REMAINING + item.QUANTITY_IN_CONTAINER)
+        {
+            Snackbar.Add(string.Format(L["po_invalid_qty_loaded"]), Severity.Error);
+            return;
+        }
+        item.UpdateQuantity(value);
+
+        var orderLine = _mapper.Map<POLineUpdate>(item);
+        orderLine.ContainerContent = _mapper.Map<ContainerContentCreateUpdate>(orderLine);
+
+        var containerContent = Container.ContainerContents.FirstOrDefault(x => x.PO_LINE_ID == orderLine.PO_LINE_ID);
+
+        if (value == 0)
+        {
+            await DeleteContainer(orderLine, containerContent);
+        }
+        else
+        {
+            if (containerContent is null)
+            {
+                await AddNewContainerContent(orderLine);
+            }
+            else
+            {
+                await UpdateContainerContent(orderLine, containerContent);
+            }
+        }
+
+        Container.QTY_SHIPPED = Container.ContainerContents.Sum(x => x.QTY_SHIPPED);
+        item.IsSelected = item.QUANTITY_REMAINING > 0 && item.QUANTITY_IN_CONTAINER > 0 ? null : item.QUANTITY_REMAINING == 0 && item.QUANTITY_IN_CONTAINER > 0;
+    }
+
+    private bool IsSameRegionPORegion(POLine line)
+    {
+        return Container.ContainerContents.Count == 0 || Container.ContainerContents.First().SHIP_TO_SITE_REGION == line.SHIP_TO_SITE_REGION;
+    }
+
+    private async Task DeleteContainer(POLineUpdate order, model.ContainerContent containerContent)
+    {
+        order.ContainerContent = _mapper.Map<ContainerContentCreateUpdate>(order);
+        order.ContainerContent = _mapper.Map<ContainerContentCreateUpdate>(containerContent);
+
+        var response = await ContainersService.DeleteContentAsync(order);
+
+        if (response.HttpStatusCode == System.Net.HttpStatusCode.OK)
+        {
+            Container.ContainerContents.Remove(containerContent);
+
+            if (Container.ContainerContents.Count == 0)
+            {
+                Region = string.Empty;
+                OnClearFilters();
+            }
+        }
+        else
+            Snackbar.Add(string.Format(L["po_remove_failed"]), Severity.Error);
+    }
+
+    private async Task AddNewContainerContent(POLineUpdate order)
+    {
+        var response = await ContainersService.AddContentAsync(order.ContainerContent.Payload(order, Container.CONTAINER_ID));
+
+        if (response.HttpStatusCode == System.Net.HttpStatusCode.OK)
+        {
+            Container.ContainerContents.Add(response.Response);
+
+            if (Container.ContainerContents.Count == 1)
+            {
+                Region = order.SHIP_TO_SITE_REGION;
+                OnClearFilters();
+            }
+        }
+        else
+            Snackbar.Add(string.Format(L["po_failed_loading_onto_container"]), Severity.Error);
+    }
+
+    private async Task UpdateContainerContent(POLineUpdate order, model.ContainerContent containerContent)
+    {
+        var indx = Container.ContainerContents.FindIndex(x => x.PO_LINE_ID == order.PO_LINE_ID);
+
+        order.ContainerContent = _mapper.Map<ContainerContentCreateUpdate>(containerContent);
+
+        var response = await ContainersService.UpdateContentAsync(order.ContainerContent.Payload(order, Container.CONTAINER_ID));
+
+        if (response.HttpStatusCode == System.Net.HttpStatusCode.OK)
+            Container.ContainerContents[indx] = response.Response;
+        else
+            Snackbar.Add(string.Format(L["po_failed_loading_onto_container"]), Severity.Error);
+    }
+
+    private string HightlightSelected(POLine line, int index)
+    {
+        if (!line.IsSelected == null || line.IsSelected == true)
+            return "!bg-lime-50";
+        else
+            return "";
+    }
+}

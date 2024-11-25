@@ -1,0 +1,109 @@
+﻿@*****************************************************************************
+
+* Copyright (c) 2024 iRobot Corporation. All Rights Reserved.
+*****************************************************************************@
+
+@page "/containers"
+
+@using iWip.Client.Common.Extensions;
+@using iWip.Infrastructure.Common.Constants.Permission;
+@using iWip.Infrastructure.Models.Containers;
+@using iWip.Infrastructure.Routes;
+@using iWip.Infrastructure.Services.Auth;
+@inject NavigationManager navigationManager;
+@inject IStringLocalizer<Resource> L;
+@inject IAuthService authService
+
+@attribute [Authorize(Permissions.Containers.View)]
+
+<PageTitle>@L["containers"]</PageTitle>
+<style>
+    .mud-table-container {
+        overflow: auto;
+    }
+</style>
+
+<div class="flex flex-row mb-12">
+    <div class="w-5/6">
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Blinds" Size="Size.Large" />
+            @L["containers"]
+        </MudText>
+    </div>
+    <div class="w-1/6">
+        @if (authService.User.HasAccess(new string[] { Permissions.Containers.Create }))
+        {
+            <MudButton Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Add" Color="Color.Primary" DisableElevation="true" OnClick="@(()=>navigation.NavigateTo("containers/new#add"))">
+                @L["container_new"]
+            </MudButton>
+        }
+    </div>
+</div>
+
+<div class="search-toolbar w-full flex flex-row bg-slate-100 rounded-md gap-4 px-8 py-2 mb-2 items-center" @onkeyup="HandleKeyUp">
+    <MudTextField @bind-Value="Filter.CONTAINER_NUMBER" Placeholder="@L["container_no"]"></MudTextField>
+    <MudTextField @bind-Value="Filter.HOUSE_BILL_OF_LADING" Placeholder="@L["shipment"]"></MudTextField>
+    <MudTextField @bind-Value="Filter.SEAL_NUMBER" Placeholder="@L["container_seal_no"]"></MudTextField>
+    <MudTextField @bind-Value="Filter.CONTAINER_TYPE" Placeholder="@L["container_type"]"></MudTextField>
+    <MudTextField @bind-Value="Filter.QTY_SHIPED" Placeholder="@L["container_qty_in_container"]"></MudTextField>
+    <MudTextField @bind-Value="Filter.LAST_UPDATE_DATE" Editable="true" Placeholder="@L["date_added"]" />
+</div>
+<MudTable @ref="table" ServerData="@(new Func<TableState, Task<TableData<Container>>>(LoadContainersAsync))"
+          Dense="true"
+          Hover="true"
+          Loading="_loading"
+          LoadingProgressColor="Color.Info"
+          Breakpoint="Breakpoint.Sm"
+          FixedHeader="true"
+          Bordered="false"
+          Outlined="true"
+          Striped="true"
+          MultiSelection=false
+          ReadOnly=true>
+    <HeaderContent>
+        <MudTh><MudTableSortLabel SortBy="new Func<Container, object>(x=>x.CONTAINER_NUMBER)">@L["container_no"]</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<Container, object>(x=>x.Shipping.HOUSE_BILL_OF_LADING)">@L["shipment"]</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<Container, object>(x=>x.SEAL_NUMBER)">@L["container_seal_no"]</MudTableSortLabel></MudTh>
+        <MudTh Class="text-center"><MudTableSortLabel SortBy="new Func<Container, object>(x=>x.CONTAINER_TYPE)">@L["container_type"]</MudTableSortLabel></MudTh>
+        <MudTh Class="text-right"><MudTableSortLabel SortBy="new Func<Container, object>(x=>x.QTY_SHIPPED)">@L["container_qty_in_container"]</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<Container, object>(x=>x.PURCHASE_ORDER_NUMBER)">@L["po_number"]</MudTableSortLabel></MudTh>
+        <MudTh Class="text-right"><MudTableSortLabel SortBy="new Func<Container, object>(x=>x.LINE_NUM)">@L["line_no"]</MudTableSortLabel></MudTh>
+        <MudTh Class=""><MudTableSortLabel SortBy="new Func<Container, object>(x=>x.ITEM_NUMBER)">@L["po_item_number_short"]</MudTableSortLabel></MudTh>
+        <MudTh Class="text-right"><MudTableSortLabel SortBy="new Func<Container, object>(x=>x.LAST_UPDATE_DATE.Value.ToShortDateString())">@L["date_added"]</MudTableSortLabel></MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd Class="pl-5">
+            @if (authService.User.HasAccess(new string[] { Permissions.Containers.View }))
+            {
+                <MudLink Class="text-sm" Href="@($"containers/edit/{@context.CONTAINER_ID}")">@context.CONTAINER_NUMBER</MudLink>
+            }
+            else
+            {
+                <MudText Class="text-sm">@context.CONTAINER_NUMBER</MudText>
+            }
+        </MudTd>
+        <MudTd DataLabel="@L["shipment"]">
+            @if (context.Shipping is not null)
+            {
+                @if (authService.User.HasAccess(new string[] { Permissions.Shipments.View }))
+                {
+                    <MudLink Class="text-sm" Href="@($"shipment/details/{context.Shipping.HOUSE_BILL_OF_LADING}")">@context.Shipping.HOUSE_BILL_OF_LADING</MudLink>
+                }
+                else
+                {
+                    <MudText Class="text-sm">@context.Shipping.HOUSE_BILL_OF_LADING</MudText>
+                }
+            }
+        </MudTd>
+        <MudTd>@context.SEAL_NUMBER</MudTd>
+        <MudTd Class="text-center">@context.CONTAINER_TYPE</MudTd>
+        <MudTd Class="text-right" Style="padding-right:3.2rem">@context.QTY_SHIPPED</MudTd>
+        <MudTd Class="pl-5">@context.PURCHASE_ORDER_NUMBER</MudTd>
+        <MudTd Class="text-center pr-12">@context.LINE_NUM</MudTd>
+        <MudTd Class="font-mono pr-2">@context.ITEM_NUMBER</MudTd>
+        <MudTd Class="text-right pr-11">@context.LAST_UPDATE_DATE.Value.ToShortDateString()</MudTd>
+    </RowTemplate>
+    <PagerContent>
+        <MudTablePager RowsPerPageString=@L["rows_per_page"] />
+    </PagerContent>
+</MudTable>

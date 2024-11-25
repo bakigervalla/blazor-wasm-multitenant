@@ -1,0 +1,64 @@
+@*****************************************************************************
+
+* Copyright (c) 2024 iRobot Corporation. All Rights Reserved.
+*****************************************************************************@
+
+@using System.Globalization
+@using Microsoft.Extensions.Options
+@using iWip.Client.Services.Layout;
+@using iWipCommon.Constants;
+<MudTooltip Text="@CurrentLanguage">
+    <MudMenu Class="mx-1" Icon="@Icons.Material.Outlined.Translate" Color="Color.Default" Dense="true">
+        @if (SupportedLanguages is not null)
+        {
+            @foreach (var language in SupportedLanguages)
+            {
+                if (language.Name == CurrentLanguage)
+                {
+                    <MudMenuItem style="background:var(--mud-palette-primary); color:white">@language.DisplayName</MudMenuItem>
+                }
+                else
+                {
+                    <MudMenuItem OnClick="(()=> ChangeLanguageAsync(language.Name))">@language.DisplayName</MudMenuItem>
+                }
+            }
+        }
+    </MudMenu>
+</MudTooltip>
+
+@code {
+    public string? CurrentLanguage { get; set; } = "English";
+    public List<CultureInfo>? SupportedLanguages { get; set; } = new();
+    [Inject] private NavigationManager Navigation { get; set; } = null!;
+    [Inject] private ILayoutService LayoutService { get; set; } = null!;
+
+    protected override Task OnInitializedAsync()
+    {
+        SupportedLanguages = LocalizationConstants.SupportedLanguages.Select(x => new CultureInfo(x.Code)).ToList();
+        CurrentLanguage = CultureInfo.CurrentCulture.Name;
+        return Task.CompletedTask;
+    }
+
+
+    private async Task ChangeLanguageAsync(string languageCode)
+    {
+        CurrentLanguage = languageCode;
+        var culture = new CultureInfo(languageCode);
+
+        var userPreferences = await LayoutService.GetLayoutPreferences();
+
+        userPreferences.Language = languageCode;
+
+        CultureInfo.DefaultThreadCurrentCulture = culture;
+        CultureInfo.DefaultThreadCurrentUICulture = culture;
+
+        await LayoutService.UpdateLayoutPreferences(userPreferences);
+
+
+        Navigation.NavigateTo(Navigation.BaseUri, forceLoad: true);
+
+    
+
+        await Task.CompletedTask;
+    }
+}

@@ -1,0 +1,108 @@
+@*****************************************************************************
+
+* Copyright (c) 2024 iRobot Corporation. All Rights Reserved.
+*****************************************************************************@
+
+@using System.Globalization;
+@using iWip.Client.Common.Extensions;
+@using iWip.Infrastructure.Common.Constants;
+@using iWip.Infrastructure.Services.Auth;
+@inherits LayoutComponentBase;
+@inject NavigationManager navigation;
+@inject IStringLocalizer<Resource> L
+@inject AuthenticationStateProvider authStateProvider
+@inject IAuthService authService
+
+<MudDialogProvider />
+<MudSnackbarProvider />
+<MudThemeProvider Theme="_theme" />
+
+<AuthorizeView>
+    <NotAuthorized>
+        <MudContainer MaxWidth="MaxWidth.Small" Class="d-flex align-center" Style="height: 100vh;">
+            <div class="d-flex flex-column mud-width-full">
+                <MudPaper Elevation="25" Class="pa-8" Width="100%" MaxWidth="500px">
+                    <img src="/images/logo_icon.png" style="width:100px; height:100px;" />
+                    @Body
+                </MudPaper>
+            </div>
+        </MudContainer>
+    </NotAuthorized>
+
+    <Authorized>
+        <MudLayout>
+            @if (_loadedPreferences)
+            {
+                <NavMenu CanMiniSideMenuDrawer="_canMiniSideMenuDrawer"
+                OpenCommandPalette="OpenCommandPalette"
+                ThemeManager="UserPreferences.ThemeManager"
+                ToggleSideMenuDrawer="ToggleSideMenuDrawer"
+                User="@authService.User" />
+
+                <SideMenu @bind-CanMiniSideMenuDrawer="_canMiniSideMenuDrawer"
+                @bind-SideMenuDrawerOpen="UserPreferences.SideMenuDrawerOpen"
+                User="@authService.User"
+                OnToggleMenuDrawer="ToggleSideMenuDrawer"/>
+
+                <ThemesMenu @bind-ThemingDrawerOpen="_themingDrawerOpen"
+                ThemeManager="UserPreferences.ThemeManager"
+                        ThemeManagerChanged="ThemeManagerChanged" />
+            <ThemesButton OnClick="@(() => _themingDrawerOpen = true)" />
+                }
+            <MudMainContent>
+                <BreadcrumbWrapper Links="@BreadcrumbLinks" />
+                <MudContainer Class="mb-16 mt-4 h-screen">
+                    @Body
+                </MudContainer>
+                <footer class="flex justify-center text-sm py-2">
+                    © @DateTime.Now.Year&nbsp;<a href="https://www.irobot.com" class="text-green-500 hover:text-green-600" target="_blank">iRobot Corporation</a>.&nbsp;
+                    <span>All Rights Reserved. Version: @GenericConstants.AppVersion</span>
+                </footer>
+            </MudMainContent>
+        </MudLayout>
+    </Authorized>
+</AuthorizeView>
+
+
+@code {
+    private string currentUrl;
+    private List<Models.BreadcrumbLink> BreadcrumbLinks { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        BreadcrumbLinks = new List<Models.BreadcrumbLink>();
+
+        currentUrl = navigation.Uri;
+        var myurl = currentUrl.Replace(navigation.BaseUri, "");
+
+        BreadcrumbLinks.Add(new Models.BreadcrumbLink
+            {
+                Address = navigation.BaseUri,
+                IsActive = navigation.Uri == navigation.BaseUri,
+                OrderIndex = 1,
+                Title = @L["home"]
+            });
+
+        var path = myurl.Split('/');
+        var count = 1;
+
+        if (path.Length > 0 && int.TryParse(path.Last(), out _))
+            path = path.Take(path.Length - 1).ToArray();
+
+        foreach (var link in path)
+        {
+            if (link == "") continue;
+            count++;
+            var lastlink = BreadcrumbLinks.Last();
+            BreadcrumbLinks.Add(new Models.BreadcrumbLink
+                {
+                    Address = $"{lastlink.Address}/{link}",
+                    IsActive = link == path.Last(),
+                    OrderIndex = count,
+                    Title = $"&nbsp;/&nbsp;{L[link.ToLower()]}"
+                });
+        }
+        base.OnParametersSet();
+    }
+
+}

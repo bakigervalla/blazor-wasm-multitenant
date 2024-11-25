@@ -1,0 +1,57 @@
+﻿@*****************************************************************************
+
+* Copyright (c) 2024 iRobot Corporation. All Rights Reserved.
+*****************************************************************************@
+
+@using System.Linq.Expressions;
+@using iWip.Infrastructure.Models.Shipment;
+@using iWip.Infrastructure.Services.Shipment;
+@inject IStringLocalizer<Resource> L
+
+<MudItem Class="grid grid-cols-[32%_70%] gap-1">
+    <label for="title" class="w-96">@L["forwarder"]</label>
+    <MudAutocomplete Clearable
+                     For="@For"
+                     SearchFunc="@Search"
+                     T="string"
+                     Value="SelectedValue"
+                     ValueChanged="@((e) => OnValueChanged.InvokeAsync(e))"
+                     ResetValueOnEmptyText="true"
+                     Immediate="true"
+                     Variant="Variant.Outlined"
+                     Margin="Margin.Dense" Class="w-96">
+    </MudAutocomplete>
+</MudItem>
+@code {
+
+    [Parameter] public string? SelectedValue { get; set; }
+    [Parameter] public Expression<Func<string>>? For { get; set; }
+
+    [Parameter] public EventCallback<string> OnValueChanged { get; set; }
+
+    [Inject] private IShipmentService ShipmentService { get; set; }
+
+    private string[] Forwarders { get; set; }
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        await GetForwardersAsync();
+    }
+
+    private async Task GetForwardersAsync()
+    {
+        var response = await ShipmentService.GetForwardersLookupAsync();
+
+        if (response is not null)
+            Forwarders = response.Select(x => x.LOV_VALUE).ToArray();
+    }
+
+    private async Task<IEnumerable<string>> Search(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+            return Forwarders;
+
+        return Forwarders.Where(x => x.Contains(value, StringComparison.InvariantCultureIgnoreCase)).ToArray();
+    }
+}

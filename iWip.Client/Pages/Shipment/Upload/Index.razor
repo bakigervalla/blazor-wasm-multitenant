@@ -1,0 +1,132 @@
+﻿@*****************************************************************************
+
+* Copyright (c) 2024 iRobot Corporation. All Rights Reserved.
+*****************************************************************************@
+
+@page "/shipment/upload/{HouseBillOfLading}/{HouseBillOfLadingId:int}"
+
+@using System.Net;
+@using iWip.Client.Common.Extensions;
+@using iWip.Client.Models.Shipment;
+@using iWip.Client.Pages.Shipment.Upload.Components;
+@using iWip.Infrastructure.Common.Constants.Permission;
+@using iWip.Infrastructure.Models.Shipment;
+@using iWip.Infrastructure.Services.Shipment;
+@inject IStringLocalizer<Resource> L;
+@inject Navigation navigation;
+@inject IMapper _mapper;
+
+@attribute [Authorize(Permissions.Documents.View)]
+
+<div class="flex">
+    <InfoBox Title="@L["shipment_doc_management"]"
+             Subtitle="@string.Format("{0}: {1}", L["shipment_name"], HouseBillOfLading)"
+             ClassSubtitle="text-slate-600 text-xs font-bold" />
+
+    <div class="flex justify-end items-center flex-1">
+        <MudButton Variant="Variant.Outlined" Color="Color.Default" Size="Size.Small" OnClick=@navigation.NavigateBack>@L["back"]</MudButton>
+    </div>
+</div>
+
+<div class="flex flex-row justify-around">
+    @if (_loading)
+    {
+        <div class="relative items-center block max-w-sm p-6 bg-white">
+            <MudProgressCircular Color="Color.Success" Indeterminate="true" />
+        </div>
+    }
+    else
+    {
+        <Uploader Text="@L["bill_of_lading"]"
+                  ButtonUploadText="@L["draft"]"
+                  ButtonCancelText="@L["cancel"]"
+                  FileType="UploadFileType.BILL_OF_LADING"
+                  AcceptFileTypesExt=".pdf, .jpg, .png"
+                  Documents="Documents.Where(x=> x.FILE_TYPE.IsEnumEquals(UploadFileType.BILL_OF_LADING)).ToList()"
+                  HouseBillOfLading="@HouseBillOfLading"
+                  HouseBillOfLadingId="@HouseBillOfLadingId"
+                  OnInputFileChanged="OnInputFileChanged"
+                  OnIgnoreFile="HandleIgnoreFile" />
+
+        <Uploader Text="@L["shipment_excel"]"
+                  ButtonUploadText="@L["upload"]"
+                  ButtonCancelText="@L["cancel"]"
+                  FileType="UploadFileType.EXCEL"
+                  AcceptFileTypesExt=".xls, .xlsx"
+                  Documents="Documents.Where(x=> x.FILE_TYPE.IsEnumEquals(UploadFileType.EXCEL)).ToList()"
+                  HouseBillOfLading="@HouseBillOfLading"
+                  HouseBillOfLadingId="@HouseBillOfLadingId"
+                  OnInputFileChanged="OnInputFileChanged"
+                  OnIgnoreFile="HandleIgnoreFile" />
+
+        <Uploader Text="@L["customs_clearance"]"
+                  ButtonUploadText="@L["upload"]"
+                  ButtonCancelText="@L["cancel"]"
+                  FileType="UploadFileType.CUSTOM_CLEARANCE"
+                  AcceptFileTypesExt=".pdf, .jpg, .png"
+                  Documents="Documents.Where(x=> x.FILE_TYPE.IsEnumEquals(UploadFileType.CUSTOM_CLEARANCE)).ToList()"
+                  HouseBillOfLading="@HouseBillOfLading"
+                  HouseBillOfLadingId="@HouseBillOfLadingId"
+                  OnInputFileChanged="OnInputFileChanged"
+                  OnIgnoreFile="HandleIgnoreFile" />
+
+        <Uploader Text="@L["shipment_upload_serialized_prod_title"]"
+                  ButtonUploadText="@L["upload"]"
+                  ButtonCancelText="@L["cancel"]"
+                  FileType="UploadFileType.SERIALIZED_PRODUCT"
+                  AcceptFileTypesExt=".xls, .xlsx"
+                  Documents="Documents.Where(x=> x.FILE_TYPE.IsEnumEquals(UploadFileType.SERIALIZED_PRODUCT)).ToList()"
+                  HouseBillOfLading="@HouseBillOfLading"
+                  HouseBillOfLadingId="@HouseBillOfLadingId"
+                  OnInputFileChanged="OnInputFileChanged"
+                  OnIgnoreFile="HandleIgnoreFile" />
+
+        <Uploader Text="@L["others"]"
+                  ButtonUploadText="@L["upload"]"
+                  ButtonCancelText="@L["cancel"]"
+                  FileType="UploadFileType.OTHER"
+                  AcceptFileTypesExt="*"
+                  Documents="Documents.Where(x=> x.FILE_TYPE.IsEnumEquals(UploadFileType.OTHER)).ToList()"
+                  HouseBillOfLading="@HouseBillOfLading"
+                  HouseBillOfLadingId="@HouseBillOfLadingId"
+                  OnInputFileChanged="OnInputFileChanged"
+                  OnIgnoreFile="HandleIgnoreFile" />
+    }
+</div>
+
+@code {
+    [Parameter] public string HouseBillOfLading { get; set; }
+    [Parameter] public int HouseBillOfLadingId { get; set; }
+
+    [Inject] private IShipmentService ShipmentService { get; set; }
+
+    private IList<ShippingDocument> Documents { get; set; }
+    private bool _loading;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await GetFiles();
+    }
+
+    private async Task GetFiles()
+    {
+        _loading = true;
+
+        var response = await ShipmentService.GetShippingDocumentsAsync(HouseBillOfLadingId);
+
+        if (response.HttpStatusCode == HttpStatusCode.OK)
+            Documents = response.Response;
+
+        _loading = false;
+    }
+
+    private void OnInputFileChanged(ShippingDocument file)
+    {
+        Documents.Add(file);
+    }
+    private void HandleIgnoreFile(ShippingDocument file)
+    {
+        Documents.Remove(file);
+    }
+    
+}

@@ -1,0 +1,15 @@
+﻿<MudDialog style="height: 30%; align-items: center; justify-content: center;">
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            @Title
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <p>@Body</p>
+    </DialogContent>
+</MudDialog>
+
+@code {
+    [Parameter] public string Title { get; set; }
+    [Parameter] public string Body { get; set; }
+}

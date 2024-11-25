@@ -1,0 +1,87 @@
+﻿@*****************************************************************************
+
+* Copyright (c) 2024 iRobot Corporation. All Rights Reserved.
+*****************************************************************************@
+
+@using System.Linq.Expressions;
+@using iWip.Client.Models.Containers;
+@using iWip.Infrastructure.Models.Shipment;
+@using iWip.Infrastructure.Services.Shipment;
+@inject IStringLocalizer<Resource> L
+
+<label>@L["shipment"]</label>
+<MudAutocomplete Clearable
+                 CoerceText="true"
+                 For="@For"
+                 SearchFunc="@Search"
+                 MaxItems=100
+                 T="ShippingHeader"
+                 Value="Item"
+                 ValueChanged="@((e) => OnValueChanged.InvokeAsync(e))"
+                 ResetValueOnEmptyText="true"
+                 Immediate="true"
+                 Variant="Variant.Outlined"
+                 Margin="Margin.Dense">
+@*    <MoreItemsTemplate>
+        <MudText Align="Align.Center" Class="px-4 py-1">
+            @string.Format(L["autocomplete_max_items_help_text"], 100)
+        </MudText>
+    </MoreItemsTemplate>*@
+    <NoItemsTemplate>
+        <MudText Align="Align.Center" Class="px-4 py-1">
+            @L["autocomplete_empty_list_help_text"]
+        </MudText>
+    </NoItemsTemplate>
+</MudAutocomplete>
+
+@code {
+
+    [Parameter] public ShippingHeader Item { get; set; }
+    [Parameter] public Expression<Func<ShippingHeader>>? For { get; set; }
+
+    [Parameter] public EventCallback<ShippingHeader> OnValueChanged { get; set; }
+
+    [Inject] private IShipmentService ShipmentService { get; set; }
+
+    private IEnumerable<ShippingHeader> HouseBillOfLadings { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await GetAllShippingAsync();
+    }
+
+    private async Task GetAllShippingAsync()
+    {
+        var result = await ShipmentService.GetAllShippingsLookupAsync();
+
+        HouseBillOfLadings = result.Select(x => new ShippingHeader
+            {
+                HOUSE_BILL_OF_LADING = x.HOUSE_BILL_OF_LADING,
+                HOUSE_BILL_OF_LADING_ID = x.HOUSE_BILL_OF_LADING_ID
+            });
+
+        if (Item == null)
+            await OnValueChanged.InvokeAsync(HouseBillOfLadings.FirstOrDefault());
+    }
+
+    private async Task<IEnumerable<ShippingHeader>> Search(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+            return HouseBillOfLadings;
+
+        var result = HouseBillOfLadings.Where(x => x.HOUSE_BILL_OF_LADING.Contains(value, StringComparison.InvariantCultureIgnoreCase));
+
+        if (result.Count() > 0)
+            return result;
+
+        return await ShipmentService.GetAllShippingsLookupAsync(value);
+
+    }
+
+    // TextChanged="@((e) => OnTextChanged(e))"
+    //private async Task OnTextChanged(string e)
+    //{
+    //    if (Item is not null && Item.HOUSE_BILL_OF_LADING_ID > 0 && string.IsNullOrEmpty(Item.HOUSE_BILL_OF_LADING))
+    //        Item.HOUSE_BILL_OF_LADING = HouseBillOfLadings.FirstOrDefault(x => x.HOUSE_BILL_OF_LADING_ID == Item.HOUSE_BILL_OF_LADING_ID).HOUSE_BILL_OF_LADING;
+    //}
+}

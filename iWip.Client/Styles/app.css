@@ -1,0 +1,176 @@
+﻿/*****************************************************************************
+
+* Copyright (c) 2024 iRobot Corporation. All Rights Reserved.
+*****************************************************************************/
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+﻿div.mud-select-input,
+div.mud-input {
+    border-radius: 10px;
+    background: white;
+}
+
+
+.mud-table {
+    box-shadow: none !important;
+    border-radius: 0 !important;
+}
+
+.mud-table-container {
+    width: 100% !important
+}
+
+.dg-nofiltericons th div.mud-menu,
+.dg-nofiltericons th button.mud-button-root {
+    display: none
+}
+
+.text-right {
+    text-align: right !important;
+}
+
+.search-toolbar .mud-input-root {
+    border: 1px solid #ccc !important;
+    border-radius: 6px;
+    padding: 6px 4px 4px 4px !important;
+    margin: 0;
+    font-size: 12px !important;
+}
+
+    .search-toolbar .mud-input-root:focus {
+        border: 1px solid var(--mud-palette-primary) !important;
+    }
+
+.search-toolbar .mud-input.mud-input-underline:after,
+.search-toolbar .mud-input.mud-input-underline:before,
+.search-toolbar .mud-input.mud-input-underline:hover:not(.mud-disabled):before {
+    border-bottom: 0 !important;
+}
+
+.search-toolbar .mud-input-text {
+    margin-top: 0 !important;
+}
+
+.po-list-table-attach {
+    @apply w-full;
+}
+
+    .po-list-table-attach table th.mud-table-cell {
+        padding: 4px 6px !important;
+    }
+
+    .po-list-table-attach table td.mud-table-cell {
+        padding-top: 2px !important;
+        padding-bottom: 2px !important;
+    }
+
+    .po-list-table-attach .mud-input-numeric-spin {
+        display: none !important;
+    }
+
+    .po-list-table-attach .mud-input-control.mud-input-number-control.mud-input-showspin .mud-input:not(.mud-input-adorned-end) input {
+        padding-inline-end: 0 !important;
+        padding: 4px 6px !important;
+    }
+
+    .po-list-table-attach .mud-table-root .mud-table-head .mud-table-cell {
+        line-height: 20px !important;
+    }
+
+    .po-list-table-attach .mud-input-control > .mud-input-control-input-container > div.mud-input.mud-input-text {
+        @apply m-0 border border-gray-300 rounded-md;
+    }
+
+    .po-list-table-attach .mud-input.mud-input-underline:before,
+    .po-list-table-attach .mud-input.mud-input-underline:after {
+        border-bottom: none !important;
+    }
+
+    .po-list-table-attach .mud-input-root {
+        @apply text-right;
+    }
+
+    .po-list-table-attach .mud-input.mud-input-underline:after {
+        border-bottom: none !important;
+    }
+
+/*.root-container {
+    max-width: 1300px !important;
+}*/
+
+.qty-input-po-container input {
+    text-align: right;
+}
+
+@media (min-width: 1280px) {
+    .mud-container-maxwidth-lg {
+        max-width: 1550px !important;
+    }
+}
+
+.mud-radio .mud-radio-content {
+    font-size: 0.9rem !important;
+}
+
+/* shipment */
+.cm-invoice-po-list .mud-table-root .mud-table-head .mud-table-cell {
+    line-height: 32px !important;
+}
+
+.cm-invoice-po-list .mud-table-cell {
+    padding: 2px 4px !important;
+}
+
+.cm-invoice-po-list .mud-input > input.mud-input-root-outlined, div.mud-input-slot.mud-input-root-outlined {
+    padding-inline-end: 0 !important;
+    padding: 5px 6px !important;
+    font-size: .875rem;
+    border-radius: 0px;
+}
+
+.cm-invoice-po-list .mud-input-numeric-spin {
+    display: none !important;
+}
+
+.cm-invoice-po-list .mud-input-underline:after,
+.cm-invoice-po-list .mud-input-underline:before {
+    border-bottom: none !important;
+}
+
+.cm-invoice-price input {
+    text-align: right;
+}
+
+.cm-center-text-fields input {
+    text-align: center;
+}
+
+.cm-invoice-po-list .mud-input-outlined-border {
+    border-radius: 6px !important;
+}
+
+.cm-invoice-po-list .mud-input:focus .mud-input-outlined {
+    border: none !important;
+}
+
+.upload-file-input-description .mud-input > input.mud-input-root-outlined, div.mud-input-slot.mud-input-root-outlined {
+    padding-inline-end: 0 !important;
+    padding: 4px 8px !important;
+    border-radius: 0px;
+}
+
+.upload-file-input-comment input,
+.upload-file-input-description textarea {
+    font-size: .8rem !important;
+}
+.upload-file-input-description textarea {
+    padding-top: 10px !important;
+}
+
+.permissions .mud-select-input,
+.users .mud-select-input {
+    padding: 8px !important;
+}

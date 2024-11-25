@@ -1,0 +1,48 @@
+﻿@*****************************************************************************
+
+* Copyright (c) 2024 iRobot Corporation. All Rights Reserved.
+*****************************************************************************@
+
+@using iWip.Infrastructure.Common.Constants.Permission;
+@using iWip.Infrastructure.Models.Shipment;
+@using iWip.Infrastructure.Services.Auth;
+@inject IStringLocalizer<Resource> L;
+@inject IAuthService authService
+
+<MudTable Items="Items"
+          Dense="true"
+          Hover="true"
+          LoadingProgressColor="Color.Info"
+          Breakpoint="Breakpoint.Sm"
+          FixedHeader="true"
+          Bordered="false"
+          Striped="true"
+          Outlined="false"
+          MultiSelection=false
+          ReadOnly=true>
+    <HeaderContent>
+        <MudTh Class="w-44">@L["shipment_name"]</MudTh>
+        <MudTh Class="text-center">@L["port_of_loading"]</MudTh>
+        <MudTh Class="text-right">@L["port_of_discharge"]</MudTh>
+        <MudTh Class="text-right">@L["port_of_destination"]</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd Class="pl-5">
+            @if (authService.User.HasAccess(new string[] { Permissions.Shipments.View }))
+            {
+                <MudLink Class="text-sm" Href="@($"shipment/details/{@context.HOUSE_BILL_OF_LADING}")">@context.HOUSE_BILL_OF_LADING</MudLink>
+            }
+            else
+            {
+                <MudText Class="text-sm">@context.HOUSE_BILL_OF_LADING</MudText>
+            }
+        </MudTd>
+        <MudTd Class="text-center">@context.PORT_OF_ORIGIN</MudTd>
+        <MudTd Class="text-right pr-4">@context.PORT_OF_DISCHARGE</MudTd>
+        <MudTd Class="text-right pr-4">@context.DESTINATION_PORT</MudTd>
+    </RowTemplate>
+</MudTable>
+
+@code {
+    [Parameter] public IEnumerable<ShippingHeader> Items { get; set; }
+}

@@ -1,0 +1,8 @@
+
+iWip.Client/bin
+iWip.Client/obj
+iWip.Infrastructure/bin
+iWip.Infrastructure/obj
+.vs
+@Docs
+iWip.Client/wwwroot/appsettings.json

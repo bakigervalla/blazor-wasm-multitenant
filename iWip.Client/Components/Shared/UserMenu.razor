@@ -1,0 +1,45 @@
+@*****************************************************************************
+
+* Copyright (c) 2024 iRobot Corporation. All Rights Reserved.
+*****************************************************************************@
+
+@inject Navigation navigation
+@inject IStringLocalizer<Resource> L
+<MudMenu AnchorOrigin="Origin.BottomRight"
+         Class="@Class"
+         LockScroll="true"
+         TransformOrigin="Origin.TopRight">
+    <ActivatorContent>
+        <MudIcon Color="Color.Primary" Size=@Size.Large Icon="@Icons.Material.Outlined.AccountCircle" />
+    </ActivatorContent>
+    <ChildContent>
+        <div class="py-4"
+             style="min-width: 220px">
+            <MudText Class="px-6 pb-2"
+                     Typo="Typo.body2">
+                <b>@User.DisplayName</b>
+            </MudText>
+            <MudText Class="px-6 pb-2"
+                     Typo="Typo.body2">
+                @User.Email
+            </MudText>
+            <MudDivider Class="my-2" />
+            <MudMenuItem OnClick="@(() => navigation.NavigateTo("account"))">
+                <div class="d-flex">
+                    <MudIcon Class="mx-2"
+                             Icon="@Icons.Material.Filled.AccountBox" />
+                    <MudText>@L["account"]</MudText>
+                </div>
+            </MudMenuItem>
+            <div class="mt-4 mx-4">
+                <MudButton Color="Color.Default"
+                           FullWidth="true"
+                           OnClick="Logout"
+                           StartIcon="@Icons.Material.Filled.Logout"
+                           Variant="Variant.Outlined">
+                    @L["logout"]
+                </MudButton>
+            </div>
+        </div>
+    </ChildContent>
+</MudMenu>

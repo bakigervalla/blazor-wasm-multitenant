@@ -1,0 +1,250 @@
+﻿@*****************************************************************************
+
+* Copyright (c) 2024 iRobot Corporation. All Rights Reserved.
+*****************************************************************************@
+
+@using System.Net;
+@using System.ComponentModel.DataAnnotations;
+@using iWip.Client.Common.Extensions;
+@using iWip.Client.Components.Shared.Dialogs;
+@using iWip.Client.Models.Tenants;
+@using iWip.Infrastructure.Common;
+@using iWip.Infrastructure.Common.Constants.Permission;
+@using iWip.Infrastructure.Models.Tenants;
+@using iWip.Infrastructure.Services.Auth;
+@using iWip.Infrastructure.Services.Tenants;
+@inject IStringLocalizer<Resource> L
+@inject IMapper _mapper;
+@inject IAuthService authService
+
+<MudDialog Class="w-1/3 pb-4 px-4">
+    <DialogContent>
+        <MudForm Model="@Model" @ref="@form" ValidationDelay="0" Class="flex flex-col gap-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <MudItem>
+                    <label>@L["manufacturer_number"]</label>
+                    <MudTextField @bind-Value="Model.ID"
+                                  For="@(() => Model.ID)"
+                                  Immediate="true"
+                                  MaxLength="10"
+                                  InputType="InputType.Number"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense" />
+                </MudItem>
+
+                <MudCheckBox For="@(() => Model.IsActive)" @bind-Checked="Model.IsActive" Label="@L["is_active"]" Color="Color.Primary" Class="mt-5"></MudCheckBox>
+
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <MudItem>
+                    <label>@L["short_name"]</label>
+                    <MudTextField @bind-Value="Model.ShortName"
+                                  For="@(() => Model.ShortName)"
+                                  Immediate="true"
+                                  MaxLength="50"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense" />
+                </MudItem>
+                <MudItem>
+                    <label>@L["long_name"]</label>
+                    <MudTextField @bind-Value="Model.Name"
+                                  For="@(() => Model.Name)"
+                                  Immediate="true"
+                                  MaxLength="255"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense" />
+                </MudItem>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <MudItem>
+                    <label>@L["irobot_contact"]</label>
+                    <MudTextField @bind-Value="Model.ContactPerson"
+                                  For="@(() => Model.ContactPerson)"
+                                  Immediate="true"
+                                  MaxLength="85"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense" />
+                </MudItem>
+                <MudItem>
+                    <label>@L["irobot_email"]</label>
+                    <MudTextField @bind-Value="Model.Email"
+                                  For="@(() => Model.Email)"
+                                  Immediate="true"
+                                  MaxLength="85"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense"
+                                  Validation="@(new EmailAddressAttribute() {ErrorMessage = L["email_invalid"]})" />
+                </MudItem>
+            </div>
+
+            <MudItem>
+                <MudFileUpload T="IBrowserFile" OnFilesChanged="HandleInputFileChanged" MaximumFileCount="1" Hidden="false" Class="flex-1"
+                               InputClass="absolute mud-width-full mud-height-full overflow-hidden z-20" InputStyle="opacity:0"
+                               @ondragenter="@SetDragClass" @ondragleave="@ClearDragClass" @ondragend="@ClearDragClass">
+                    <ButtonTemplate>
+                        <MudPaper Outlined="true" Class="@DragClass">
+                            <div class="flex gap-1">
+                                @if (Model.Logo != null)
+                                {
+                                    <MudImage Src="@string.Format("data:image/jpeg;base64,{0}", Convert.ToBase64String(Model.Logo))" Alt="Logo" Elevation="25" Class="rounded-lg" Width="120" />
+                                }
+                                else
+                                {
+                                    <MudText Typo="Typo.body2">@L["logo_browse_file"]</MudText>
+                                }
+                            </div>
+                        </MudPaper>
+                    </ButtonTemplate>
+                </MudFileUpload>
+            </MudItem>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <div class="flex w-full">
+
+            <div class="w-1/2">
+                @if (authService.User.IsInRole(new string[] { Roles.Role.HostAdmin }))
+                {
+                    @if (IsEditMode)
+                    {
+                        <MudButton Color="Color.Error" Class="ml-4" OnClick="@(async () => await Delete())">@L["Delete"]</MudButton>
+                    }
+                }
+            </div>
+            <div class="@(IsEditMode ? "w-1/2 text-right" : "w-full text-right")">
+                <MudButton OnClick="Cancel">@L["cancel"]</MudButton>
+                @if (authService.User.IsInRole(new string[] { Roles.Role.HostAdmin }))
+                {
+                    <MudButton Color="Color.Primary" OnClick="Submit">@L["save"]</MudButton>
+                }
+            </div>
+        </div>
+
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private static string DefaultDragClass = "relative rounded-lg border-2 border-dashed pa-4 mt-4 mud-width-full mud-height-full z-10";
+    private string DragClass = DefaultDragClass;
+
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; }
+    [Parameter] public Tenant Tenant { get; set; }
+    [Parameter] public bool IsEditMode { get; set; }
+
+    [Inject] private ITenantsService TenantService { get; set; }
+
+    public string AcceptFileTypesExt { get; set; } = ".jpg, .png, .bmp, .jpeg";
+
+    private CreateUpdateTenant Model = new();
+
+    MudForm form;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (IsEditMode)
+            Model = _mapper.Map<CreateUpdateTenant>(Tenant);
+    }
+
+    void Cancel() => MudDialog.Cancel();
+
+    private async Task Submit()
+    {
+        await form.Validate();
+
+        if (form.IsValid)
+        {
+            var tenantDto = _mapper.Map<CreateUpdateTenantDto>(Model);
+
+            var response = IsEditMode
+                        ? await TenantService.UpdateAsync(tenantDto)
+                        : await TenantService.AddNewAsync(tenantDto);
+
+            if (response.HttpStatusCode == HttpStatusCode.Conflict)
+                Snackbar.Add(string.Format(L["tenant_already_exists"], Model.ID), Severity.Error);
+            else if (response.HttpStatusCode != HttpStatusCode.OK)
+                Snackbar.Add(string.Format(L["create_tenant_failed"], Model.ID), Severity.Error);
+            else
+            {
+                Snackbar.Add(string.Format(IsEditMode ? L["tenant_updated"] : L["tenant_created"], Model.ID), Severity.Success);
+                MudDialog.Close();
+            }
+        }
+    }
+
+    private async Task Delete()
+    {
+        var parameters = new DialogParameters();
+        parameters.Add("ContentText", L[$"tenant_delete_confirm"].ToString());
+        var dialogresult = DialogService.Show<DialogConfirm>(L["delete"], parameters);
+        var result = await dialogresult.Result;
+
+        if (!result.Cancelled && bool.TryParse(result.Data.ToString(), out bool resultbool))
+        {
+            var response = await TenantService.DeleteAsync(Model.ID.Value);
+
+            if (response.HttpStatusCode != HttpStatusCode.OK)
+                Snackbar.Add(L["tenant_delete_failed"], Severity.Error);
+            else
+                MudDialog.Close();
+        }
+    }
+
+    private async Task HandleInputFileChanged(InputFileChangeEventArgs e)
+    {
+        ClearDragClass();
+        try
+        {
+            var file = e.File;
+
+            if (!IsFileValid(e))
+                return;
+
+            using (var memoryStream = new MemoryStream())
+            {
+                await file.OpenReadStream(maxAllowedSize: long.MaxValue).CopyToAsync(memoryStream);
+                Model.Logo = memoryStream.ToArray();
+                Model.LogoImage = string.Format("data:image/jpeg;base64,{0}", Convert.ToBase64String(Model.Logo));
+            }
+        }
+        catch (Exception ex)
+        {
+            throw ex;
+        }
+    }
+
+    private bool IsFileValid(InputFileChangeEventArgs e)
+    {
+        var fileExtension = Path.GetExtension(e.File.Name).ToLower();
+        var isValidFileType = AcceptFileTypesExt.IndexOf(System.IO.Path.GetExtension(fileExtension)) >= 0;
+
+        if (!isValidFileType)
+        {
+            Snackbar.Add(L["invalid_file_type"], Severity.Error);
+            return false;
+        }
+
+        // Maximum MySQL MEDIUMBLOB column size
+        int maxRowSize = 16777215;
+
+        // Allocate around 80% of the maximum row size for the BLOB column
+        int maxAllowedSize = (int)(maxRowSize * 0.8);
+
+        if (e.File.Size > maxAllowedSize) // Check file size limit
+        {
+            Snackbar.Add(L["tenants_image_toolarge"], Severity.Error);
+            return false;
+        }
+        return true;
+    }
+
+    private void SetDragClass()
+    {
+        DragClass = $"{DefaultDragClass} mud-border-primary";
+    }
+
+    private void ClearDragClass()
+    {
+        DragClass = DefaultDragClass;
+    }
+
+}

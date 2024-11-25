@@ -1,0 +1,52 @@
+﻿@*****************************************************************************
+
+* Copyright (c) 2024 iRobot Corporation. All Rights Reserved.
+*****************************************************************************@
+
+@using iWip.Infrastructure.Models.Containers;
+@using iWip.Infrastructure.Models.PurchaseOrders.Requests;
+@inject IStringLocalizer<Resource> L;
+
+<div>
+    <InfoBox Title=@L["po_details"]
+             ClassNames="pb-6 w-full" />
+
+    <div class="grid gap-2">
+        <MudItem Class="flex items-center">
+            <MudText Typo="Typo.body2">@($"{L["po_number"]}: ")</MudText>
+                <MudText Typo="Typo.body2" Class="font-bold pl-2">@Order.PURCHASE_ORDER_NUMBER</MudText>
+            </MudItem>
+            <MudItem Class="flex items-center">
+                <MudText Typo="Typo.body2">@($"{L["line_no"]}: ")</MudText>
+                <MudText Typo="Typo.body2" Class="font-bold pl-2">@Order.LINE_NUM</MudText>
+            </MudItem>
+            <MudItem Class="flex items-center">
+                <MudText Typo="Typo.body2">@($"{L["po_item_number_short"]}: ")</MudText>
+                <MudText Typo="Typo.body2" Class="font-bold pl-2">@Order.ITEM_NUMBER</MudText>
+            </MudItem>
+            <MudItem Class="flex items-center">
+                <MudText Typo="Typo.body2">@($"{L["po_qty_ordered"]}: ")</MudText>
+                <MudText Typo="Typo.body2" Class="font-bold pl-2">@Order.QUANTITY_ORDERED</MudText>
+            </MudItem>
+            <MudItem Class="flex items-center">
+                <MudText Typo="Typo.body2">@($"{L["po_qty_remaining"]}: ")</MudText>
+                <MudText Typo="Typo.body2" Class="font-bold pl-2">@Order.QUANTITY_REMAINING</MudText>
+            </MudItem>
+            <MudItem Class="flex items-center">
+                <MudText Typo="Typo.body2">@($"{L["po_date"]}: ")</MudText>
+                <MudText Typo="Typo.body2" Class="font-bold pl-2">@Order.PO_DATE.Value.ToShortDateString()</MudText>
+            </MudItem>
+            <MudItem Class="flex items-center">
+                <MudText Typo="Typo.body2">@($"{L["po_ship_by_date"]}: ")</MudText>
+                <MudText Typo="Typo.body2" Class="font-bold pl-2">@Order.SHIP_BY_DATE</MudText>
+            </MudItem>
+            <MudItem Class="flex items-center">
+                <MudText Typo="Typo.body2">@($"{L["region"]}: ")</MudText>
+                <MudText Typo="Typo.body2" Class="font-bold pl-2">@Order.SHIP_TO_SITE_REGION</MudText>
+            </MudItem>
+        </div>
+    </div>
+
+    @code {
+    [Parameter] public POHeaderRequest Order { get; set; }
+}

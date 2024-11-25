@@ -1,0 +1,157 @@
+<!--**************************************************************************
+
+* Copyright (c) 2024 iRobot Corporation. All Rights Reserved.
+***************************************************************************-->
+
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>iWip</title>
+    <base href="/" />
+    <link href="_content/MudBlazor/MudBlazor.min.css" rel="stylesheet" />
+    <link href="css/app.css" rel="stylesheet" />
+    <link href="iWip.Client.styles.css" rel="stylesheet">
+    <script src="js/oktaAuth.js" type="text/javascript"></script>
+    <!-- Latest CDN production Auth JS SDK-->
+    <script src="https://global.oktacdn.com/okta-auth-js/7.2.0/okta-auth-js.min.js" type="text/javascript"></script>
+
+    <style type="text/css">
+        .appcontainer {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .div1, .div2 {
+            padding: 20px;
+        }
+
+        .spinner_Wezc {
+            transform-origin: center;
+            animation: spinner_Oiah .75s step-end infinite;
+        }
+
+        @keyframes spinner_Oiah {
+            8.3% {
+                transform: rotate(30deg)
+            }
+
+            16.6% {
+                transform: rotate(60deg)
+            }
+
+            25% {
+                transform: rotate(90deg)
+            }
+
+            33.3% {
+                transform: rotate(120deg)
+            }
+
+            41.6% {
+                transform: rotate(150deg)
+            }
+
+            50% {
+                transform: rotate(180deg)
+            }
+
+            58.3% {
+                transform: rotate(210deg)
+            }
+
+            66.6% {
+                transform: rotate(240deg)
+            }
+
+            75% {
+                transform: rotate(270deg)
+            }
+
+            83.3% {
+                transform: rotate(300deg)
+            }
+
+            91.6% {
+                transform: rotate(330deg)
+            }
+
+            100% {
+                transform: rotate(360deg)
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div id="app">
+        <div id="main-container" class="appcontainer">
+            <div id="mud-icon" class="div1">
+                <image src="/images/irobot_logo.png" />
+            </div>
+            <div class="div2">
+                <svg width="44" height="44" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="#4CAF50">
+                    <g class="spinner_Wezc"><circle cx="12" cy="2.5" r="1.5" opacity=".14" /><circle cx="16.75" cy="3.77" r="1.5" opacity=".29" /><circle cx="20.23" cy="7.25" r="1.5" opacity=".43" /><circle cx="21.50" cy="12.00" r="1.5" opacity=".57" /><circle cx="20.23" cy="16.75" r="1.5" opacity=".71" /><circle cx="16.75" cy="20.23" r="1.5" opacity=".86" /><circle cx="12" cy="21.5" r="1.5" /></g>
+                </svg>
+            </div>
+        </div>
+    </div>
+
+    <div id="blazor-error-ui">
+        An unhandled error has occurred.
+        <a href="" class="reload">Reload</a>
+        <a class="dismiss">🗙</a>
+    </div>
+    <script src="_content/Microsoft.AspNetCore.Components.WebAssembly.Authentication/AuthenticationService.js"></script>
+    <script src="_framework/blazor.webassembly.js" auto></script>
+    <script src="_content/MudBlazor/MudBlazor.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <script src="js/apex-chart-wrapper.js"></script>
+
+    <script>
+
+        //var container = document.getElementById("main-container");
+
+        ///*var userPreferences = JSON.parse(window.localStorage.getItem("iWipUserPreferences"));*/
+        //var paths = document.getElementById("mud-icon").children;
+
+        //if (userPreferences == null) {
+        //    userPreferences = "'Language': 'en-US', 'SideMenuDrawerOpen': false, 'ShipmentStatus': false, 'ThemeManager': {'IsDarkMode': false, 'PrimaryColor': '#4CAF50'}";
+        //    window.localStorage.setItem("iWipUserPreferences", userPreferences);
+        //    userPreferences = JSON.parse(window.localStorage.getItem("iWipUserPreferences"));
+        //}
+
+        //if (userPreferences.ThemeManager.IsDarkMode) {
+        //    container.setAttribute("style", "height:100%;width:100%;margin:0;position:fixed;background-color: #151b22");
+        //} else {
+        //    container.setAttribute("style", "height:100%;width:100%;margin:0;position:fixed;");
+        //}
+
+        //for (var i = 0; i < paths.length; i++) {
+        //    paths[i].setAttribute("fill", userPreferences.ThemeManager.PrimaryColor)
+        //}
+
+
+        function getLanguage() {
+            var userPreferences = JSON.parse(window.localStorage.getItem("iWipUserPreferences"));
+            return userPreferences && userPreferences.Language.length > 0 ? userPreferences.Language : navigator.language || navigator.userLanguage || 'en-US';
+        }
+
+        function setLanguage(value) {
+            var userPreferences = JSON.parse(window.localStorage.getItem("iWipUserPreferences"));
+            userPreferences.Language = value
+
+            window.localStorage["iWipUserPreferences"] = userPreferences
+
+        }
+
+    </script>
+
+</body>
+
+</html>

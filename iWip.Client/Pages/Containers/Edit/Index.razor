@@ -1,0 +1,112 @@
+﻿@*****************************************************************************
+
+* Copyright (c) 2024 iRobot Corporation. All Rights Reserved.
+*****************************************************************************@
+
+@page "/containers/edit/{Id:int}"
+@page "/containers/edit/{Id:int}/content"
+
+@using iWip.Client.Models.Containers;
+@using iWip.Client.Pages.Containers.Edit.Components
+@using iWip.Client.Pages.Containers.Shared
+@using iWip.Infrastructure.Common.Constants.Permission;
+@using iWip.Infrastructure.Models.Containers;
+@using iWip.Infrastructure.Services.Containers;
+@inject IStringLocalizer<Resource> L;
+@inject Navigation _navigation;
+
+@attribute [Authorize(Permissions.Containers.View)]
+
+<div class="flex w-full">
+    @if (_loading)
+    {
+        <MudProgressCircular Color="Color.Success" Indeterminate="true" />
+    }
+    else
+    {
+        @if (View == ViewType.VIEW)
+        {
+            <View Container="@Container" OnEdit="@HandleEdit" OnGoBack="@_navigation.NavigateBack" />
+        }
+        else if (View == ViewType.EDIT)
+        {
+            <EditContainer Container="@Container" OnCancel="@HandleCancel" OnDelete="@(() => _navigation.NavigateTo("containers"))" OnSave="@HandleSave" />
+        }
+        else if (View == ViewType.CONTENT)
+        {
+            <ContainerContent Container="@Container" OnNavigateBack="@HandleCancel" />
+        }
+        @if (View != ViewType.CONTENT)
+        {
+            if (Container.ContainerContents.Count > 0)
+            {
+                <MudCard Class="flex flex-col w-2/4 ml-14 p-4 shadow-none">
+                    <POList IsEditMode="true" OnEdit="@(() => HandleEdit(ViewType.CONTENT))" Items="@Container.ContainerContents" />
+                </MudCard>
+            }
+            else
+            {
+                <MudCard Class="flex flex-col w-1/3 ml-14 p-4 shadow-none">
+                    <InfoBox Title="@L["contents"]"
+                             Icon="@Icons.Material.Filled.PostAdd"
+                             Subtitle="@L["container_content_infobox"]"
+                             ClassNames="items-center justify-center text-center h-full w-64"
+                             ButtonOptions="@(new InfoBox.ButtonOption{Text = @L["contents"], Variant = Variant.Filled, Color = Color.Primary, Size= Size.Small, Class = "mt-3"})"
+                             OnButtonClick="@(() => View = ViewType.CONTENT)" />
+                </MudCard>
+            }
+        }
+    }
+</div>
+
+@code {
+    [Parameter] public ViewType View { get; set; }
+    [Parameter] public int Id { get; set; }
+
+    [Inject] private IContainersService ContainersService { get; set; }
+
+    private Container Container { get; set; }
+    private bool _loading;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await GetContainer();
+
+        string currentUrl = NavigationManager.Uri;
+        bool containsContent = currentUrl.Contains("content", StringComparison.OrdinalIgnoreCase);
+
+        if (containsContent)
+            HandleEdit(ViewType.CONTENT);
+    }
+
+    private async Task GetContainer()
+    {
+        _loading = true;
+
+        Container = await ContainersService.GetByIdAsync(Id);
+
+        _loading = false;
+    }
+
+    private void HandleEdit(ViewType view)
+    {
+        View = view;
+    }
+
+    private void HandleSave(Container item)
+    {
+        Container = item;
+        View = ViewType.VIEW;
+    }
+
+    private void HandleCancel()
+    {
+        string currentUrl = NavigationManager.Uri;
+        bool containsContent = currentUrl.Contains("content", StringComparison.OrdinalIgnoreCase);
+
+        if (containsContent)
+            _navigation.NavigateBack();
+
+        View = ViewType.VIEW;
+    }
+}

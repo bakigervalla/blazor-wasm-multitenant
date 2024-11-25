@@ -1,0 +1,50 @@
+﻿@*****************************************************************************
+
+* Copyright (c) 2024 iRobot Corporation. All Rights Reserved.
+*****************************************************************************@
+
+@using iWip.Infrastructure.Common.Constants.Permission;
+@using iWip.Infrastructure.Models.Containers;
+@using iWip.Infrastructure.Services.Auth;
+@using iWip.Infrastructure.Services.Containers;
+@inject IStringLocalizer<Resource> L;
+@inject IAuthService authService
+
+<MudTable Items="Items"
+          Dense="true"
+          Hover="true"
+          LoadingProgressColor="Color.Info"
+          Breakpoint="Breakpoint.Sm"
+          FixedHeader="true"
+          Bordered="false"
+          Striped="true"
+          Outlined="false"
+          MultiSelection=false
+          ReadOnly=true>
+    <HeaderContent>
+        <MudTh Class="w-44">@L["container_no"]</MudTh>
+        @*<MudTh><MudTableSortLabel SortBy="new Func<ContainerContent, object>(x=>x.Container.SEAL_NUMBER)">@L["container_seal_no"]</MudTableSortLabel></MudTh>*@
+        <MudTh Class="text-center">@L["container_type"]</MudTh>
+        <MudTh Class="text-right">@L["container_qty_in_container"]</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd Class="pl-5">
+            @if (authService.User.HasAccess(new string[] { Permissions.Containers.View }))
+            {
+                <MudLink Class="text-sm" Href="@($"containers/edit/{@context.Container.CONTAINER_ID}")">@context.Container.CONTAINER_NUMBER</MudLink>
+            }
+            else
+            {
+                <MudText Class="text-sm">@context.Container.CONTAINER_NUMBER</MudText>
+            }
+        </MudTd>
+
+        @*<MudTd>@context.Container.SEAL_NUMBER</MudTd>*@
+        <MudTd Class="text-center">@context.Container.CONTAINER_TYPE</MudTd>
+        <MudTd Class="text-right pr-4">@context.QTY_SHIPPED</MudTd>
+    </RowTemplate>
+</MudTable>
+
+@code {
+    [Parameter] public IEnumerable<ContainerContent> Items { get; set; }
+}

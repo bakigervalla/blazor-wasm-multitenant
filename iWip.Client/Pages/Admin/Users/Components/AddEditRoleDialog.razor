@@ -1,0 +1,152 @@
+﻿@*****************************************************************************
+
+* Copyright (c) 2024 iRobot Corporation. All Rights Reserved.
+*****************************************************************************@
+
+@using System.Net;
+@using iWip.Client.Components.Shared.Dialogs;
+@using iWip.Client.Models.Users;
+@using iWip.Infrastructure.Common;
+@using iWip.Infrastructure.Models.Users;
+@using iWip.Infrastructure.Models.Tenants;
+@using iWip.Infrastructure.Services.Auth;
+@using iWip.Infrastructure.Services.Users;
+@using permissions = iWip.Infrastructure.Common.Constants.Permission;
+@inject IStringLocalizer<Resource> L
+@inject IMapper _mapper;
+@inject IAuthService authService
+
+<MudDialog Class="w-1/4 pb-4 px-4">
+    <DialogContent>
+        <MudForm Model="@Model" @ref="@form" ValidationDelay="0" Class="flex flex-col gap-4">
+            <MudItem>
+                <label>@L["role"]</label>
+                <MudTextField @bind-Value="Model.Name"
+                              For="@(() => Model.Name)"
+                              Immediate="true"
+                              MaxLength="20"
+                              Disabled=@IsEditMode
+                              Variant="Variant.Outlined"
+                              Margin="Margin.Dense" />
+            </MudItem>
+            <MudItem>
+                <label>@L["description"]</label>
+                <MudTextField @bind-Value="Model.Description"
+                              For="@(() => Model.Description)"
+                              Immediate="true"
+                              MaxLength="255"
+                              Variant="Variant.Outlined"
+                              Margin="Margin.Dense" />
+            </MudItem>
+            <MudItem>
+                <MudCheckBox For="@(() => Model.Status)" @bind-Checked="Model.Status" Label="@L["is_active"]" Color="Color.Primary" Class="ml-n1"></MudCheckBox>
+            </MudItem>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <div class="flex w-full">
+            <div class="w-1/2">
+                <MudButton OnClick="Cancel">@L["cancel"]</MudButton>
+            </div>
+            <div class="@(IsEditMode ? "w-1/2 text-right" : "w-full text-right")">
+                @if (authService.User.IsInRole(new string[] { permissions.Roles.Role.HostAdmin, permissions.Roles.Role.TenantAdmin }))
+                {
+                    if (IsEditMode)
+                    {
+                        <MudButton Color="Color.Error" Class="ml-4" Disabled=@_deleting OnClick="@(async () => await Delete())">@DeleteButton</MudButton>
+                    }
+                    <MudButton Color="Color.Primary" Disabled=@_saving OnClick="Submit">@SaveButton</MudButton>
+                }
+            </div>
+        </div>
+
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private static string DefaultDragClass = "relative rounded-lg border-2 border-dashed pa-4 mt-4 mud-width-full mud-height-full z-10";
+    private string DragClass = DefaultDragClass;
+
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; }
+    [Parameter] public Role Role { get; set; }
+    [Parameter] public bool IsEditMode { get; set; }
+
+    [Inject] private IUsersService UserService { get; set; }
+
+    MudForm form;
+    private CreateUpdateRole Model = new();
+
+    private bool _saving;
+    private bool _deleting;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (IsEditMode)
+            Model = _mapper.Map<CreateUpdateRole>(Role);
+        else
+            Role = new Role { Tenant = new() };
+    }
+
+    void Cancel() => MudDialog.Cancel();
+
+
+    private async Task Submit()
+    {
+        await form.Validate();
+
+        if (form.IsValid)
+        {
+            _saving = true;
+
+            var roleDto = _mapper.Map<CreateUpdateRoleDto>(Model);
+
+            HttpResponse<string> response;
+
+            if (IsEditMode)
+                response = await UserService.UpdateRoleAsync(roleDto);
+            else
+                response = await UserService.AddNewRoleAsync(roleDto);
+
+            if (response.HttpStatusCode == HttpStatusCode.Conflict)
+                Snackbar.Add(string.Format(L["role_already_exists"], Model.Name), Severity.Error);
+            else if (response.HttpStatusCode != HttpStatusCode.OK)
+                Snackbar.Add(string.Format(L["role_save_failed"], Model.Name), Severity.Error);
+            else
+            {
+                Snackbar.Add(string.Format(IsEditMode ? L["role_updated"] : L["role_created"], Model.Name), Severity.Success);
+                MudDialog.Close();
+            }
+
+            _saving = false;
+        }
+    }
+
+    private async Task Delete()
+    {
+        _deleting = true;
+
+        var parameters = new DialogParameters();
+        parameters.Add("ContentText", L[$"role_delete_confirm"].ToString());
+        var dialogresult = DialogService.Show<DialogConfirm>(L["delete"], parameters);
+        var result = await dialogresult.Result;
+
+        if (!result.Cancelled && bool.TryParse(result.Data.ToString(), out bool resultbool))
+        {
+            var response = await UserService.DeleteRoleAsync(Model.Id);
+
+            if (response.HttpStatusCode == HttpStatusCode.Conflict)
+                Snackbar.Add(L["role_delete_hasusers"], Severity.Error);
+            else if (response.HttpStatusCode != HttpStatusCode.OK)
+                Snackbar.Add(L["role_delete_failed"], Severity.Error);
+            else
+                MudDialog.Close();
+        }
+
+        _deleting = false;
+
+    }
+
+    private string SaveButton { get => _saving ? L["saving"] : L["save"]; }
+    private string DeleteButton { get => _deleting ? L["deleting"] : L["delete"]; }
+
+}

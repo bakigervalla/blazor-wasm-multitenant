@@ -1,0 +1,18 @@
+﻿@*****************************************************************************
+
+* Copyright (c) 2024 iRobot Corporation. All Rights Reserved.
+*****************************************************************************@
+
+<MudPaper Class="pa-16 ma-2" Outlined="true" Square="true">
+    <MudText Typo="Typo.h6">@Title</MudText>
+    @if (!string.IsNullOrEmpty(Title))
+    {
+        <MudText Typo="Typo.body2">@Subtitle</MudText>
+    }
+
+</MudPaper>
+
+@code {
+    [Parameter] public string Title { get; set; }
+    [Parameter] public string Subtitle { get; set; }
+}

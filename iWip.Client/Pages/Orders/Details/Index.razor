@@ -1,0 +1,98 @@
+﻿@*****************************************************************************
+
+* Copyright (c) 2024 iRobot Corporation. All Rights Reserved.
+*****************************************************************************@
+
+@page "/orders/details/{id:int}"
+
+@using iWip.Client.Pages.Orders.Details.Components.Order.Components;
+@using iWip.Client.Pages.Orders.Details.Components.Order;
+@using iWip.Infrastructure.Common.Constants.Permission;
+@using iWip.Infrastructure.Models.Containers;
+@using iWip.Infrastructure.Models.PurchaseOrders.Requests;
+@using iWip.Infrastructure.Services.PurchaseOrders;
+@inject IStringLocalizer<Resource> L;
+
+@attribute [Authorize(Permissions.Orders.View)]
+
+<div class="grid gap-4 grid-cols-2 mt-14">
+    @if (_loading)
+    {
+        <MudProgressCircular Color="Color.Success" Indeterminate="true" />
+    }
+    else
+    {
+        <div class="flex flex-col items-center">
+            @*<Containers OrderHeader="OrderHeader" POLineId="Id" OnAddNewContainer="@HandleAddNewContainer" />*@
+            <OrderInfo Order="OrderHeader" />
+        </div>
+        <div>
+            @if (OrderHeader.ContainerContents?.Count > 0)
+            {
+                <div class="grid justify-start">
+                    <InfoBox Title=@L["containers"]
+                             ClassNames="pb-2" />
+                    <Containers Items="@OrderHeader.ContainerContents" />
+                </div>
+            }
+            @if (OrderHeader.Shippings?.Count > 0)
+            {
+                <div class="grid justify-start mt-8" style="width:450px">
+                    <InfoBox Title=@L["shipment"]
+                             ClassNames="pb-2" />
+                    <Shipments Items="@OrderHeader.Shippings" />
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    [Inject] private IPurchaseOrderService POService { get; set; }
+
+    public POHeaderRequest OrderHeader { get; set; }
+
+
+    private bool _loading;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await GetOrder();
+    }
+
+    private async Task GetOrder()
+    {
+        _loading = true;
+
+        OrderHeader = await POService.GetOrderByLineIdAsync(Id);
+
+        _loading = false;
+    }
+
+    private void HandleAddNewContainer(ContainerContent item)
+    {
+        var existing = OrderHeader.ContainerContents.Select((value, idx) => new { Value = value, Index = idx })
+                            .FirstOrDefault(x => x.Value.CONTAINER_LINE_ID == item.CONTAINER_LINE_ID);
+
+        if (existing is null)
+        {
+            OrderHeader.ContainerContents.Add(item);
+            OrderHeader.QUANTITY_REMAINING -= item.QTY_SHIPPED;
+        }
+        else
+        {
+            if (item.QTY_SHIPPED == 0)
+            {
+                OrderHeader.QUANTITY_REMAINING += existing.Value.QTY_SHIPPED;
+                OrderHeader.ContainerContents.Remove(existing.Value);
+            }
+            else
+            {
+                OrderHeader.QUANTITY_REMAINING = OrderHeader.QUANTITY_REMAINING + existing.Value.QTY_SHIPPED - item.QTY_SHIPPED;
+                OrderHeader.ContainerContents[existing.Index].QTY_SHIPPED = item.QTY_SHIPPED;
+            }
+        }
+    }
+}

@@ -1,0 +1,17 @@
+﻿/*****************************************************************************
+
+* Copyright (c) 2024 iRobot Corporation. All Rights Reserved.
+*****************************************************************************/
+
+::deep .view-container .text-right .mud-input-root {
+    text-align: right;
+}
+
+::deep .view-container .bg-disabled .mud-input-root {
+    background-color: #E2E8F0;
+    border-radius: 10px;
+}
+
+::deep div.quantity-input {
+    margin-top: 0 !important;
+}

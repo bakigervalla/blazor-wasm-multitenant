@@ -1,0 +1,78 @@
+﻿@*****************************************************************************
+
+* Copyright (c) 2024 iRobot Corporation. All Rights Reserved.
+*****************************************************************************@
+
+@inject Navigation navigation
+@inject IStringLocalizer<Resource> L
+@using iWip.Infrastructure.Models.Containers;
+@using iWip.Infrastructure.Services.Containers;
+@using iWip.Infrastructure.Models.Orders;
+@using iWip.Infrastructure.Services.PurchaseOrders;
+
+<div class="flex h-full gap-8">
+    <div class="w-3/5 bg-slate-100 p-3 shadow-sm rounded-lg">
+
+
+        <MudText Class="my-4" Typo="Typo.h4">@L["container"]</MudText>
+
+        <div class="grid md:grid-cols-2 text-sm">
+            <div class="grid grid-cols-2">
+                <div class="px-4 py-2 font-semibold">@L["container_id"]</div>
+                <div class="px-4 py-2">@Item.CONTAINER_ID</div>
+            </div>
+            <div class="grid grid-cols-2">
+                <div class="px-4 py-2 font-semibold">@L["container_number"]</div>
+                <div class="px-4 py-2">@Item.CONTAINER_NUMBER</div>
+            </div>
+            <div class="grid grid-cols-2">
+                <div class="px-4 py-2 font-semibold">@L["container_type"]</div>
+                <div class="px-4 py-2">@Item.CONTAINER_TYPE</div>
+            </div>
+            <div class="grid grid-cols-2">
+                <div class="px-4 py-2 font-semibold">@L["seal"]</div>
+                <div class="px-4 py-2">@Item.SEAL_NUMBER</div>
+            </div>
+            <div class="grid grid-cols-2">
+                <div class="px-4 py-2 font-semibold">@L["UPDATE DATE"]</div>
+                <div class="px-4 py-2">@Item.LAST_UPDATE_DATE</div>
+            </div>
+            <div class="grid grid-cols-2">
+                <div class="px-4 py-2 font-semibold">@L["shipped_quantity"]</div>
+                <div class="px-4 py-2">@Item.QTY_SHIPPED</div>
+            </div>
+            <MudButton Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.ArrowBack" Color="Color.Default" DisableElevation="true" Class="w-32 mt-12 mb-4" OnClick="@navigation.NavigateBack">@L["back"]</MudButton>
+        </div>
+    </div>
+    <div class="flex flex-col gap-y-5 w-2/5">
+        <MudCard Class="ordersSummary">
+            <MudCardHeader>
+                <CardHeaderContent>
+                    <MudText Typo="Typo.h6">Orders Summary</MudText>
+                </CardHeaderContent>
+            </MudCardHeader>
+            <MudCardContent>
+                <MudText Typo="Typo.body1" Class="pt-4">@L["purchaseorders"]</MudText>
+                <table class="w-3/4 text-center text-sm font-light">
+                    <thead class="border-b font-medium dark:border-neutral-500">
+                        <tr>
+                            <th scope="col" class="px-6 py-2">@L["po_id"]</th>
+                            <th scope="col" class="px-6 py-2">@L["quantity_ordered"]</th>
+                            <th scope="col" class="px-6 py-2">@L["quantity_delivered"]</th>
+                            <th scope="col" class="px-6 py-2">@L["quantity_remaining"]</th>
+                        </tr>
+                    </thead>
+                </table>
+
+            </MudCardContent>
+        </MudCard>
+    </div>
+</div>
+
+@code {
+    [Parameter] public Container Item { get; set; }
+
+    [Inject] private IPurchaseOrderService POService { get; set; }
+
+    public IList<POHeader> POHeaders { get; set; } = new List<POHeader>();
+}

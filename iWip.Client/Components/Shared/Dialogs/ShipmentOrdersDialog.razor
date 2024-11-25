@@ -1,0 +1,182 @@
+﻿@*****************************************************************************
+
+* Copyright (c) 2024 iRobot Corporation. All Rights Reserved.
+*****************************************************************************@
+
+@using iWip.Client.Common.Extensions;
+@using iWip.Infrastructure.Common.Pagination;
+@using iWip.Infrastructure.Models.Orders;
+@using iWip.Infrastructure.Models.Shipment;
+@using iWip.Infrastructure.Models.Shipment.Response;
+@using iWip.Infrastructure.Services.PurchaseOrders;
+@using iWip.Infrastructure.Services.Shipment;
+@inject ISnackbar Snackbar;
+@inject IStringLocalizer<Resource> L
+<MudDialog>
+    <DialogContent>
+        <InfoBox Title="@Title"
+                 Subtitle="@Subtitle"
+                 ClassNames="pb-6 w-full" />
+        <div class="search-toolbar w-full flex flex-row bg-slate-100 rounded-md gap-4 px-8 py-2 mb-2 items-center" @onkeyup="HandleKeyUp">
+            <MudTextField @bind-Value="Filter.PURCHASE_ORDER_NUMBER" Placeholder="@L["po_number"]"></MudTextField>
+            <MudTextField @bind-Value="Filter.LINE_NUM" Placeholder="@L["line_no"]"></MudTextField>
+            <MudTextField @bind-Value="Filter.ITEM_NUMBER" Placeholder="@L["po_item_number_short"]"></MudTextField>
+            <MudTextField @bind-Value="Filter.DESCRIPTION" Placeholder="@L["description"]"></MudTextField>
+            <MudTextField @bind-Value="Filter.PO_ORDER_TYPE" Placeholder="@L["po_type"]"></MudTextField>
+            <MudTextField @bind-Value="Filter.SHIP_TO_SITE_REGION" Placeholder="@L["region"]"></MudTextField>
+            <MudTextField Class="w-48" @bind-Value="Filter.SHIP_TO_LOCATION" Editable="true" Placeholder="@L["ship_to_address"]" />
+            <MudTextField @bind-Value="Filter.QUANTITY_ORDERED" Placeholder="@L["po_qty_ordered"]"></MudTextField>
+            <MudTextField Class="w-40" @bind-Value="Filter.QUANTITY_DELIVERED" Placeholder="@L["po_qty_delivered"]"></MudTextField>
+            <MudTextField Class="w-44" @bind-Value="Filter.QUANTITY_REMAINING" Editable="true" Placeholder="@L["po_qty_remaining"]" />
+            <MudTextField @bind-Value="Filter.PO_DATE" Placeholder="@L["po_date"]"></MudTextField>
+            <MudTextField @bind-Value="Filter.SHIP_BY_DATE" Placeholder="@L["po_ship_by_date"]"></MudTextField>
+        </div>
+        <MudTable @ref="table" ServerData="@(new Func<TableState, Task<TableData<POLinesResponse>>>(LoadPOLinesAsync))"
+                  Dense="true"
+                  Hover="true"
+                  Loading="_loading"
+                  LoadingProgressColor="Color.Info"
+                  Breakpoint="Breakpoint.Sm"
+                  FixedHeader="true"
+                  Bordered="false"
+                  Outlined="true"
+                  Striped="true"
+                  MultiSelection=false
+                  ReadOnly=true
+                  Height="400px">
+            <HeaderContent>
+                <MudTh Class="!p-0"></MudTh>
+                <MudTh Class="pl-5 whitespace-nowrap"><MudTableSortLabel SortBy="new Func<POLinesResponse, object>(x=>x.PURCHASE_ORDER_NUMBER)">@L["po_number"]</MudTableSortLabel></MudTh>
+                <MudTh Class="text-center whitespace-nowrap"><MudTableSortLabel SortBy="new Func<POLinesResponse, object>(x=>x.LINE_NUM)">@L["line_no"]</MudTableSortLabel></MudTh>
+                <MudTh><MudTableSortLabel SortBy="new Func<POLinesResponse, object>(x=>x.ITEM_NUMBER)">@L["po_item_number_short"]</MudTableSortLabel></MudTh>
+                <MudTh Class="!px-0 whitespace-nowrap"><MudTableSortLabel SortBy="new Func<ShippedOrders, object>(x=>x.ITEM_DESCRIPTION)">@L["description"]</MudTableSortLabel></MudTh>
+                <MudTh Class="whitespace-nowrap"><MudTableSortLabel SortBy="new Func<ShippedOrders, object>(x=>x.PO_ORDER_TYPE)">@L["po_type"]</MudTableSortLabel></MudTh>
+                <MudTh Class="!px-0 whitespace-nowrap"><MudTableSortLabel SortBy="new Func<ShippedOrders, object>(x=>x.SHIP_TO_SITE_REGION)">@L["region"]</MudTableSortLabel></MudTh>
+                <MudTh Class="!px-0 whitespace-nowrap"><MudTableSortLabel SortBy="new Func<ShippedOrders, object>(x=>x.SHIP_TO_LOCATION)">@L["ship_to_address"]</MudTableSortLabel></MudTh>
+                <MudTh Class="text-right whitespace-nowrap"><MudTableSortLabel SortBy="new Func<POLinesResponse, object>(x=>x.QUANTITY_ORDERED)">@L["po_qty_ordered"]</MudTableSortLabel></MudTh>
+                <MudTh Class="text-right whitespace-nowrap"><MudTableSortLabel SortBy="new Func<POLinesResponse, object>(x=>x.QUANTITY_DELIVERED)">@L["po_qty_delivered"]</MudTableSortLabel></MudTh>
+                <MudTh Class="text-right whitespace-nowrap"><MudTableSortLabel SortBy="new Func<POLinesResponse, object>(x=>x.QUANTITY_REMAINING)">@L["po_qty_remaining"]</MudTableSortLabel></MudTh>
+                <MudTh Class="text-right whitespace-nowrap"><MudTableSortLabel SortBy="new Func<POLinesResponse, object>(x=>x.PO_DATE.Value.ToShortDateString())">@L["po_date"]</MudTableSortLabel></MudTh>
+                <MudTh Class="text-right whitespace-nowrap"><MudTableSortLabel SortBy="new Func<POLinesResponse, object>(x=> x.SHIP_BY_DATE)">@L["po_ship_by_date"]</MudTableSortLabel></MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd Class="!pr-0 !pl-2">
+                    <MudCheckBox T="bool" Size="Size.Small" Checked=@context.IsSelected CheckedChanged="@((bool e) => HandleSelected(e, context))" />
+                </MudTd>
+                <MudTd Class=" pl-5">@context.PURCHASE_ORDER_NUMBER</MudTd>
+                <MudTd Class="text-center pr-12">@context.LINE_NUM</MudTd>
+                <MudTd Class="font-mono pr-12">@context.ITEM_NUMBER</MudTd>
+                <MudTd Class="!p-0 whitespace-nowrap" title="@context.ITEM_DESCRIPTION">@context.ITEM_DESCRIPTION.Truncate(35)</MudTd>
+                <MudTd Class="whitespace-nowrap">@context.PO_ORDER_TYPE</MudTd>
+                <MudTd Class="pl-0 whitespace-nowrap">@context.SHIP_TO_SITE_REGION</MudTd>
+                <MudTd Class="!pl-0 whitespace-nowrap">@context.SHIP_TO_LOCATION</MudTd>
+                <MudTd Class="text-right pr-12">@context.QUANTITY_ORDERED</MudTd>
+                <MudTd Class="text-right pr-12">@context.QUANTITY_DELIVERED</MudTd>
+                <MudTd Class="text-right pr-12">@context.QUANTITY_REMAINING</MudTd>
+                <MudTd Class="text-right pr-12">@context.PO_DATE.Value.ToShortDateString()</MudTd>
+                <MudTd Class="text-right pr-10 whitespace-nowrap">@context.SHIP_BY_DATE</MudTd>
+            </RowTemplate>
+            <PagerContent>
+                <span class='absolute float-left m-4'>@L["po_list_legend"]</span>
+                <MudTablePager RowsPerPageString=@L["rows_per_page"] />
+            </PagerContent>
+        </MudTable>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">@L["cancel"]</MudButton>
+        <MudButton Color="Color.Primary" OnClick="Submit">@L["ok"]</MudButton>
+    </DialogActions>
+</MudDialog>
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; }
+    [Parameter] public string Title { get; set; }
+    [Parameter] public string Subtitle { get; set; }
+    [Parameter] public IList<ShippedOrders> ShippedOrders { get; set; }
+
+    [Inject] private IShipmentService ShipmentService { get; set; }
+
+    private MudTable<POLinesResponse> table;
+    private SearchShippedOrdersParameters Filter { get; set; } = new();
+    private IList<POLinesResponse> SelectedLines { get; set; } = new List<POLinesResponse>();
+    private bool IsSearch;
+    private bool resetPaging;
+    private bool _loading;
+
+    private async Task<TableData<POLinesResponse>> LoadPOLinesAsync(TableState state)
+    {
+        _loading = true;
+
+        PagingResponse<POLinesResponse> response;
+
+        if (resetPaging)
+        {
+            state.Page = 0;
+            state.PageSize = new MetaData().PageSize;
+            resetPaging = false;
+        }
+
+        if (IsSearch)
+        {
+            response = await ShipmentService.SearchOrdersAsync(Filter.SetFilters(), state.PageSize, state.Page + 1);
+        }
+        else
+            response = await ShipmentService.SearchOrdersAsync(null, state.PageSize, state.Page + 1);
+
+        _loading = false;
+
+        return new TableData<POLinesResponse>() { Items = response.Data, TotalItems = response.MetaData.TotalCount };
+    }
+
+    private void OnSearch()
+    {
+        IsSearch = true;
+        resetPaging = true;
+        table.ReloadServerData();
+    }
+
+    private void OnClearFilters()
+    {
+        IsSearch = false;
+        resetPaging = true;
+        Filter = new();
+        table.ReloadServerData();
+    }
+
+    private void HandleKeyUp(KeyboardEventArgs e)
+    {
+        if (e.Code == "Enter" || e.Code == "NumpadEnter")
+            OnSearch();
+        else if (e.Code == "Escape")
+            OnClearFilters();
+    }
+
+    private void HandleSelected(bool value, POLinesResponse line)
+    {
+        line.IsSelected = value;
+
+        if (value)
+            SelectedLines.Add(line);
+        else
+            SelectedLines.Remove(line);
+    }
+
+    void Submit()
+    {
+        var combinedRegions = ShippedOrders
+                                .Select(x => new { x.PO_ORDER_TYPE, x.SHIP_TO_SITE_REGION }).Concat(
+                                    SelectedLines.Select(x => new { x.PO_ORDER_TYPE, x.SHIP_TO_SITE_REGION })
+                                );
+        bool hasDifferentRgions = combinedRegions.GroupBy(order => new { order.SHIP_TO_SITE_REGION, order.PO_ORDER_TYPE }).Count() > 1;
+
+        if (hasDifferentRgions)
+            Snackbar.Add(L["selected_po_must_have_same_region_and_order_type_as_shipment"], Severity.Error);
+        else
+            MudDialog.Close(DialogResult.Ok(SelectedLines));
+    }
+
+    void Cancel()
+    {
+        SelectedLines.Clear();
+        MudDialog.Cancel();
+    }
+}

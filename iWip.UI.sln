@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.6.33829.357
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "iWip.Client", "iWip.Client\iWip.Client.csproj", "{5E70AD79-0625-4D8D-A780-F1F28DC76809}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "iWip.Infrastructure", "iWip.Infrastructure\iWip.Infrastructure.csproj", "{34204D18-B048-40A3-B26A-5DCE74C8F961}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{5E70AD79-0625-4D8D-A780-F1F28DC76809}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5E70AD79-0625-4D8D-A780-F1F28DC76809}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5E70AD79-0625-4D8D-A780-F1F28DC76809}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5E70AD79-0625-4D8D-A780-F1F28DC76809}.Release|Any CPU.Build.0 = Release|Any CPU
+		{34204D18-B048-40A3-B26A-5DCE74C8F961}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{34204D18-B048-40A3-B26A-5DCE74C8F961}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{34204D18-B048-40A3-B26A-5DCE74C8F961}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{34204D18-B048-40A3-B26A-5DCE74C8F961}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {E19024A3-A224-44BE-A520-9D52C9B90127}
+	EndGlobalSection
+EndGlobal

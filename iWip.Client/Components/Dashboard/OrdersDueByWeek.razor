@@ -1,0 +1,170 @@
+@*****************************************************************************
+
+* Copyright (c) 2024 iRobot Corporation. All Rights Reserved.
+*****************************************************************************@
+
+@using MudBlazor.Utilities;
+@using iWip.Client.Models.Invoice
+@using iWip.Infrastructure.Models.Dashboard;
+@using iWip.Infrastructure.Models.Orders;
+@using iWip.Infrastructure.Models.PurchaseOrders.Requests;
+@using iWip.Infrastructure.Models.Shipment.Response;
+@using iWip.Infrastructure.Services.Dashboard;
+@using iWip.Infrastructure.Services.PurchaseOrders;
+@inherits MudComponentBase
+@inject Navigation navigation;
+@inject IStringLocalizer<Resource> L
+
+<MudElement @attributes="@UserAttributes"
+            Class="@Classname"
+            Style="@Style">
+    @if (_loading)
+    {
+        <MudCard>
+            <MudCardHeader>
+                <CardHeaderContent>
+                    <MudSkeleton Animation="Animation.Wave" Width="50%" />
+                </CardHeaderContent>
+            </MudCardHeader>
+            <MudCardContent Class="h-96 mb-2">
+                <MudSkeleton SkeletonType="SkeletonType.Rectangle" Animation="Animation.Wave" Height="40px" Width="100%" Class="mb-2" />
+                <MudSkeleton Animation="Animation.Wave" Width="100%" />
+                <MudSkeleton Animation="Animation.Wave" Width="100%" />
+                <MudSkeleton Animation="Animation.Wave" Width="100%" />
+                <MudSkeleton Animation="Animation.Wave" Width="100%" />
+                <MudSkeleton Animation="Animation.Wave" Width="100%" />
+                <MudSkeleton Animation="Animation.Wave" Width="100%" />
+                <MudSkeleton Animation="Animation.Wave" Width="100%" />
+                <MudSkeleton Animation="Animation.Wave" Width="100%" />
+                <MudSkeleton Animation="Animation.Wave" Width="100%" />
+                <MudSkeleton Animation="Animation.Wave" Width="100%" />
+            </MudCardContent>
+            <MudCardActions Class="flex row text-right justify-end">
+                <MudSkeleton SkeletonType="SkeletonType.Rectangle" Animation="Animation.Wave" Width="110px" Height="30px" Class="mr-2 mb-2" />
+            </MudCardActions>
+        </MudCard>
+    }
+    else
+    {
+        <MudPaper Class="pa-2"
+                  Elevation="2">
+            <MudTable Breakpoint="Breakpoint.Sm"
+                      Class="ma-2"
+                      CustomHeader="true"
+                      Elevation="0"
+                      Hover=true
+                      Dense="true"
+                      Striped=true
+                      Items="Items">
+                <ToolBarContent>
+                    <div class="align-center d-flex">
+                        <MudText Typo="Typo.h6">@L["dashboard_pos_duethisweek_pastdue"]</MudText>
+                    </div>
+                </ToolBarContent>
+                <HeaderContent>
+                    <MudTHeadRow Class="custom-header !py-2">
+                        <MudTh Class="custom-header-cell custom-header-cell-first">
+                            <b>@L["po_number"]</b>
+                        </MudTh>
+                        <MudTh Class="custom-header-cell">
+                            <b>@L["container_no"]</b>
+                        </MudTh>
+                        <MudTh Class="custom-header-cell">
+                            <b>@L["line_no"]</b>
+                        </MudTh>
+                        <MudTh Class="custom-header-cell">
+                            <b>@L["po_item_number_short"]</b>
+                        </MudTh>
+                        <MudTh Class="custom-header-cell text-right">
+                            <b>@L["po_qty_ordered"]</b>
+                        </MudTh>
+                        <MudTh Class="custom-header-cell text-right custom-header-cell-last">
+                            <b>@L["po_qty_remaining"]</b>
+                        </MudTh>
+                    </MudTHeadRow>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="@L["irobot_po"]" title="@context.ITEM_DESCRIPTION">
+                        <MudLink Href="@($"orders/details/{@context.PO_LINE_ID}")">@context.PURCHASE_ORDER_NUMBER</MudLink>
+                    </MudTd>
+                    <MudTd Class="" DataLabel="@L["container_no"]">
+                        @if (context.CONTAINER is not null)
+                        {
+                            <MudLink Href="@($"containers/edit/{context.CONTAINER.CONTAINER_ID}")">@context.CONTAINER.CONTAINER_NUMBER</MudLink>
+                        }
+                    </MudTd>
+                    <MudTd DataLabel="@L["line_number"]">@context.LINE_NUM</MudTd>
+                    <MudTd Class="font-mono pr-12" DataLabel="@L["po_item_number_short"]">@context.ITEM_NUMBER</MudTd>
+                    <MudTd Class="text-right" DataLabel="@L["quantity_ordered"]">@context.QUANTITY_ORDERED</MudTd>
+                    <MudTd Class="text-right" DataLabel="@L["quantity_remaining"]">@context.QUANTITY_REMAINING</MudTd>
+                </RowTemplate>
+            </MudTable>
+            <MudDivider />
+            <div class="align-center d-flex justify-end"
+                 style="height: 60px">
+                <MudButton Class="mr-2"
+                           EndIcon="@Icons.Material.Filled.KeyboardArrowRight"
+                           Style="text-transform: none"
+                           Variant="Variant.Text"
+                           OnClick="@(() => navigation.NavigateTo("/orders"))">
+                    @L["View All"]
+                </MudButton>
+            </div>
+        </MudPaper>
+    }
+</MudElement>
+
+@code {
+    [Inject] private IDashboardService DashboardService { get; set; }
+
+    private IEnumerable<POHeaderRequest> Items { get; set; }
+    private bool _loading;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await GetOrdersDueThisWeek();
+    }
+
+    private async Task GetOrdersDueThisWeek()
+    {
+        _loading = true;
+
+        Items = await DashboardService.GetOrdersDueThisWeek();
+
+        _loading = false;
+    }
+
+    private string Classname =>
+    new CssBuilder()
+        .AddClass(Class)
+        .Build();
+}
+
+<style>
+
+    .custom-header {
+        background-color: rgba(145, 158, 171, 0.16);
+    }
+
+    .custom-header-cell {
+        color: rgb(145, 158, 171) !important;
+        line-height: 1.2rem !important;
+        font-size: .8rem;
+        padding-top: 0.8rem !important;
+        padding-bottom: 0.8rem !important;
+    }
+
+    .custom-header-cell-first {
+        border-top-left-radius: var(--mud-default-borderradius);
+        border-bottom-left-radius: var(--mud-default-borderradius);
+    }
+
+    .custom-header-cell-last {
+        border-top-right-radius: var(--mud-default-borderradius);
+        border-bottom-right-radius: var(--mud-default-borderradius);
+    }
+
+    .mud-table-cell {
+        border: none;
+    }
+</style>

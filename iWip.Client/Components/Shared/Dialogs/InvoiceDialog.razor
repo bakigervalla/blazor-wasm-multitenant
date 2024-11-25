@@ -1,0 +1,185 @@
+﻿@*****************************************************************************
+
+* Copyright (c) 2024 iRobot Corporation. All Rights Reserved.
+*****************************************************************************@
+
+@using System.Net;
+@using iWip.Client.Common.Extensions;
+@using iWip.Infrastructure.Common.Pagination;
+@using iWip.Infrastructure.Models.Orders;
+@using iWip.Infrastructure.Models.Shipment;
+@using iWip.Infrastructure.Models.Shipment.Response;
+@using iWip.Infrastructure.Services.PurchaseOrders;
+@using iWip.Infrastructure.Services.Shipment;
+@inject ISnackbar Snackbar;
+@inject IStringLocalizer<Resource> L
+@inject IMapper _mapper;
+<MudDialog>
+    <DialogContent>
+        <InfoBox Subtitle="@Subtitle"
+                 ClassNames="pb-6 w-full" />
+        <div class="search-toolbar w-full flex flex-row bg-slate-100 rounded-md gap-4 px-8 py-2 mb-2 items-center" @onkeyup="HandleKeyUp">
+            <MudTextField @bind-Value="Filter.CONTAINER_ID" Placeholder="@L["container_id"]"></MudTextField>
+            <MudTextField @bind-Value="Filter.PURCHASE_ORDER_NUMBER" Placeholder="@L["po_number"]"></MudTextField>
+            <MudTextField @bind-Value="Filter.LINE_NUM" Placeholder="@L["line_no"]"></MudTextField>
+            <MudTextField @bind-Value="Filter.ITEM_NUMBER" Placeholder="@L["po_item_number_short"]"></MudTextField>
+            <MudTextField @bind-Value="Filter.DESCRIPTION" Placeholder="@L["description"]"></MudTextField>
+            <MudTextField @bind-Value="Filter.INVOICE_PRICE" Placeholder="@L["shipment_invoice_price"]"></MudTextField>
+            <MudTextField Class="w-48" @bind-Value="Filter.COMMERCIAL_INVOICE" Editable="true" Placeholder="@L["shipment_invoice_commercial_invoice"]" />
+            <MudTextField @bind-Value="Filter.CM_ORDER_NUMBER" Placeholder="@L["shipment_invoice_cm_order_number"]"></MudTextField>
+            <MudTextField Class="w-40" @bind-Value="Filter.CM_ORDER_LINE" Placeholder="@L["shipment_invoice_cm_order_line"]"></MudTextField>
+            <MudTextField Class="w-44" @bind-Value="Filter.LAST_UPDATE_DATE" Editable="true" Placeholder="@L["date"]" />
+        </div>
+        <MudTable @ref="table" Items="Items"
+                  Class="cm-invoice-po-list"
+                  Dense="true"
+                  Hover="true"
+                  Loading="_loading"
+                  LoadingProgressColor="Color.Info"
+                  Breakpoint="Breakpoint.Sm"
+                  FixedHeader="true"
+                  Bordered="false"
+                  Outlined="true"
+                  Striped="true"
+                  MultiSelection=false
+                  ReadOnly=true
+                  Height="400px">
+            <HeaderContent>
+                <MudTh Class="pl-5 whitespace-nowrap"><MudTableSortLabel SortBy="new Func<Invoice, object>(x=>x.CONTAINER_ID)">@L["container_id"]</MudTableSortLabel></MudTh>
+                <MudTh Class="text-center whitespace-nowrap"><MudTableSortLabel SortBy="new Func<Invoice, object>(x=>x.PURCHASE_ORDER_NUMBER)">@L["po_number"]</MudTableSortLabel></MudTh>
+                <MudTh Class="text-center whitespace-nowrap"><MudTableSortLabel SortBy="new Func<Invoice, object>(x=>x.LINE_NUM)">@L["line_no"]</MudTableSortLabel></MudTh>
+                <MudTh Class="whitespace-nowrap"><MudTableSortLabel SortBy="new Func<Invoice, object>(x=>x.ITEM_NUMBER)">@L["po_item_number_short"]</MudTableSortLabel></MudTh>
+                <MudTh Class="whitespace-nowrap"><MudTableSortLabel SortBy="new Func<Invoice, object>(x=>x.ITEM_DESCRIPTION)">@L["description"]</MudTableSortLabel></MudTh>
+                <MudTh Class="text-right !px-0 whitespace-nowrap"><MudTableSortLabel SortBy="new Func<Invoice, object>(x=>x.INVOICE_PRICE)">@L["shipment_invoice_price"]</MudTableSortLabel></MudTh>
+                <MudTh Class="!px-0 whitespace-nowrap"><MudTableSortLabel SortBy="new Func<Invoice, object>(x=>x.COMMERCIAL_INVOICE)">@L["shipment_invoice_commercial_invoice"]</MudTableSortLabel></MudTh>
+                <MudTh Class="whitespace-nowrap"><MudTableSortLabel SortBy="new Func<Invoice, object>(x=>x.CM_ORDER_NUMBER)">@L["shipment_invoice_cm_order_number"]</MudTableSortLabel></MudTh>
+                <MudTh Class="whitespace-nowrap"><MudTableSortLabel SortBy="new Func<Invoice, object>(x=>x.CM_ORDER_LINE)">@L["shipment_invoice_cm_order_line"]</MudTableSortLabel></MudTh>
+                <MudTh Class="text-center whitespace-nowrap"><MudTableSortLabel SortBy="new Func<Invoice, object>(x=>x.LAST_UPDATE_DATE)">@L["date"]</MudTableSortLabel></MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd Class="text-center p-0">@context.CONTAINER_ID</MudTd>
+                <MudTd Class="">@context.PURCHASE_ORDER_NUMBER</MudTd>
+                <MudTd Class="text-center pr-12">@context.LINE_NUM</MudTd>
+                <MudTd Class="font-mono">@context.ITEM_NUMBER</MudTd>
+                <MudTd Class="whitespace-nowrap" title="@context.ITEM_DESCRIPTION">@context.ITEM_DESCRIPTION?.Truncate(35)</MudTd>
+                <MudTd Class="text-right pr-6 pl-0">
+                    <MudNumericField Variant="Variant.Outlined" Class="w-28 cm-invoice-price" @bind-Value="@context.INVOICE_PRICE" Min="0" MaxLength="12" Format="N2" />
+                </MudTd>
+                <MudTd Class="text-left p-0">
+                    <MudTextField Variant="Variant.Outlined" Class="cm-center-text-fields w-40" @bind-Value="@context.COMMERCIAL_INVOICE" RequiredError="" ErrorText="" Required MaxLength="17" />
+                </MudTd>
+                <MudTd Class="p-0">
+                    <MudTextField Variant="Variant.Outlined" Class="cm-center-text-fields w-28" @bind-Value="@context.CM_ORDER_NUMBER" MaxLength="9" />
+                </MudTd>
+                <MudTd Class="text-center pr-7 pl-0">
+                    <MudNumericField Variant="Variant.Outlined" Class="cm-center-text-fields w-28" @bind-Value="@context.CM_ORDER_LINE" Min="0" MaxLength="9" />
+                </MudTd>
+                <MudTd Class="text-right pr-10">@context.LAST_UPDATE_DATE.Value.ToShortDateString()</MudTd>
+            </RowTemplate>
+            <PagerContent>
+                <MudTablePager RowsPerPageString=@L["rows_per_page"] />
+            </PagerContent>
+        </MudTable>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">@L["cancel"]</MudButton>
+        <MudButton Color="Color.Primary" OnClick="Submit">@L["ok"]</MudButton>
+    </DialogActions>
+</MudDialog>
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; }
+    [Parameter] public string Title { get; set; }
+    [Parameter] public string Subtitle { get; set; }
+    [Parameter] public int HOUSE_BILL_OF_LADING_ID { get; set; }
+    [Parameter] public List<ShippedOrders> ShippedOrders { get; set; }
+
+    [Inject] private IShipmentService ShipmentService { get; set; }
+
+    private MudTable<Invoice> table;
+    // ServerData="@(new Func<TableState, Task<TableData<Invoice>>>(LoadPOLinesAsync))"
+
+    private SearchInvoiceParameters Filter { get; set; } = new();
+
+    private IList<Invoice> Items { get; set; } = new List<Invoice>();
+
+    private bool resetPaging;
+    private bool _loading;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Filter = new SearchInvoiceParameters { HOUSE_BILL_OF_LADING_ID = HOUSE_BILL_OF_LADING_ID.ToString() };
+        await LoadPOLinesAsync();
+    }
+
+    // private async Task<TableData<Invoice>> LoadPOLinesAsync(TableState state)
+    private async Task LoadPOLinesAsync()
+    {
+        _loading = true;
+
+        if (resetPaging)
+        {
+            //state.Page = 0;
+            //state.PageSize = new MetaData().PageSize;
+            resetPaging = false;
+        }
+
+        // var response = await ShipmentService.SearchInvoicesAsync(Filter.SetFilters(), state.PageSize, state.Page + 1);
+        var response = await ShipmentService.SearchInvoicesAsync(Filter.SetFilters(), 10, 1);
+
+        _loading = false;
+
+        Items = response.Data;
+
+        // return new TableData<Invoice>() { Items = response.Data, TotalItems = response.MetaData.TotalCount };
+    }
+
+    private void OnSearch()
+    {
+        resetPaging = true;
+        table.ReloadServerData();
+    }
+
+    private void OnClearFilters()
+    {
+        resetPaging = true;
+        Filter = new SearchInvoiceParameters { HOUSE_BILL_OF_LADING_ID = HOUSE_BILL_OF_LADING_ID.ToString() };
+        table.ReloadServerData();
+    }
+
+    private void HandleKeyUp(KeyboardEventArgs e)
+    {
+        if (e.Code == "Enter" || e.Code == "NumpadEnter")
+            OnSearch();
+        else if (e.Code == "Escape")
+            OnClearFilters();
+    }
+
+    async void Submit()
+    {
+        var hasErrors = Items.Any(x => string.IsNullOrEmpty(x.COMMERCIAL_INVOICE));
+
+        if (hasErrors)
+        {
+            Snackbar.Add(L["cm_invoice_validation_failed"], Severity.Error);
+            return;
+        }
+
+        var updated = _mapper.Map<List<UpdateInvoiceRequest>>(Items);
+
+        var response = await ShipmentService.UpdateCMInvoicesAsync(updated);
+
+        if (response.HttpStatusCode == HttpStatusCode.OK)
+        {
+            Snackbar.Add(L["cm_invoices_saved_success"], Severity.Success);
+            MudDialog.Close();
+        }
+        else
+            Snackbar.Add(L["cm_invoices_saved_failed"], Severity.Error);
+
+    }
+
+    void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+}

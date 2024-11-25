@@ -1,0 +1,50 @@
+﻿@*****************************************************************************
+
+* Copyright (c) 2024 iRobot Corporation. All Rights Reserved.
+*****************************************************************************@
+
+@using iWip.Infrastructure.Models.Tenants;
+@using iWip.Infrastructure.Services.Auth;
+@inject IAuthService authService
+@inject IStringLocalizer<Resource> L
+
+<div class="flex">
+    <div class="px-6">
+
+        <div class="flex items-center">
+            <MudIcon Class="mx-2" Icon="@Icons.Material.Filled.Workspaces" />
+            <MudText Class="py-4" Typo="Typo.h6">@L["company_profile"]</MudText>
+        </div>
+        <MudDivider Class="mb-8" />
+
+        <div class="grid grid-cols-2">
+            <div class="px-4 py-2 font-semibold">@L["manufacturer_number"]</div>
+            <div class="px-4 py-2">@Tenant.ID</div>
+        </div>
+        <div class="grid grid-cols-2">
+            <div class="px-4 py-2 font-semibold">@L["Email"]</div>
+            <div class="px-4 py-2">@Tenant.Email</div>
+        </div>
+        <div class="grid grid-cols-2">
+            <div class="px-4 py-2 font-semibold">@L["short_name"]</div>
+            <div class="px-4 py-2">@Tenant.ShortName</div>
+        </div>
+        <div class="grid grid-cols-2">
+            <div class="px-4 py-2 font-semibold">@L["long_name"]</div>
+            <div class="px-4 py-2">@Tenant.Name</div>
+        </div>
+        <div class="grid grid-cols-2">
+            <div class="px-4 py-2 font-semibold">@L["irobot_contact"]</div>
+            <div class="px-4 py-2">@Tenant.ContactPerson</div>
+        </div>
+        <div class="grid grid-cols-2">
+            <div class="px-4 py-2 font-semibold">@L["irobot_email"]</div>
+            <div class="px-4 py-2">@Tenant.Email</div>
+        </div>
+    </div>
+</div>
+
+@code {
+
+    private Tenant Tenant { get => authService.User.Tenant; }
+}

@@ -1,0 +1,40 @@
+﻿@*****************************************************************************
+
+* Copyright (c) 2024 iRobot Corporation. All Rights Reserved.
+*****************************************************************************@
+
+@inject ISnackbar Snackbar;
+@inject IStringLocalizer<Resource> L
+
+<MudDialog Class="w-96">
+    <DialogContent>
+        <MudTextField @ref="commentField"
+                      Required
+                      RequiredError="@L[""]"
+                      T="string"
+                      Style="font-size: 13px"
+                      Immediate="true"
+                      Lines="3"
+                      Variant="Variant.Outlined"
+                      Label="@L["comment"]" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">@L["cancel"]</MudButton>
+        <MudButton Color="Color.Primary" OnClick="Submit">@L["ok"]</MudButton>
+    </DialogActions>
+</MudDialog>
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; }
+
+    MudTextField<string> commentField;
+
+    void Submit()
+    {
+        if (!string.IsNullOrEmpty(commentField.Text))
+            MudDialog.Close(DialogResult.Ok(commentField.Text));
+        else
+            Snackbar.Add(string.Format(L["cannot_be_empty"], L["comment"]), Severity.Error);
+    }
+
+    void Cancel() => MudDialog.Cancel();
+}

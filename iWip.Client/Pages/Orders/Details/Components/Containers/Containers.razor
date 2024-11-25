@@ -1,0 +1,190 @@
+﻿@*****************************************************************************
+
+* Copyright (c) 2024 iRobot Corporation. All Rights Reserved.
+*****************************************************************************@
+
+@using iWip.Infrastructure.Common.Pagination;
+@using iWip.Infrastructure.Models.Containers;
+@using iWip.Infrastructure.Models.Orders;
+@using iWip.Infrastructure.Models.PurchaseOrders.Requests;
+@using iWip.Infrastructure.Services.Containers;
+@using iWip.Client.Common.Extensions;
+@using iWip.Infrastructure.Services.PurchaseOrders;
+@inject IDialogService DialogService;
+@inject ISnackbar Snackbar;
+@inject IStringLocalizer<Resource> L;
+@inject IMapper _mapper;
+
+<div>
+    <div class="flex">
+        <div class="w-full">
+            <InfoBox Title=@L["po_containers"]
+                     Subtitle="@L["po_containers_subtitle"]"
+                     ClassNames="pb-6 w-full" />
+        </div>
+    </div>
+
+    <div class="search-toolbar w-full flex flex-row bg-slate-100 rounded-md gap-4 px-8 py-2 mb-2 items-center" @onkeyup="HandleKeyUp">
+        <MudTextField @bind-Value="Filter.CONTAINER_NUMBER" Placeholder="@L["container_no"]"></MudTextField>
+        <MudTextField @bind-Value="Filter.SEAL_NUMBER" Placeholder="@L["container_seal_no"]"></MudTextField>
+        <MudTextField Class="w-44" @bind-Value="Filter.CONTAINER_TYPE" Placeholder="@L["container_type"]"></MudTextField>
+        <MudTextField @bind-Value="Filter.SHIP_TO_SITE_REGION" Placeholder="@L["region"]"></MudTextField>
+        <MudTextField Class="w-44" @bind-Value="Filter.QTY_SHIPED" Placeholder="@L["container_qty_in_container"]"></MudTextField>
+        <MudTextField @bind-Value="Filter.LAST_UPDATE_DATE" Editable="true" Placeholder="@L["date_added"]" />
+    </div>
+    <MudTable @ref="_table" ServerData="@(new Func<TableState, Task<TableData<POContainer>>>(LoadContainersAsync))"
+              Class="po-list-table-attach"
+              Dense="true"
+              Hover="true"
+              Loading="_loading"
+              LoadingProgressColor="Color.Info"
+              Breakpoint="Breakpoint.Sm"
+              FixedHeader="true"
+              Bordered="false"
+              Outlined="false"
+              Striped="true"
+              MultiSelection=false
+              ReadOnly=false
+              RowClassFunc="@HightlightSelected"
+              Height="460px">
+        <HeaderContent>
+            <MudTh Style="padding-left:0.9rem !important"><MudTableSortLabel SortBy="new Func<POContainer, object>(x=>x.CONTAINER_NUMBER)">@L["container_no"]</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel SortBy="new Func<POContainer, object>(x=>x.SEAL_NUMBER)">@L["container_seal_no"]</MudTableSortLabel></MudTh>
+            <MudTh Class="text-center"><MudTableSortLabel SortBy="new Func<POContainer, object>(x=>x.CONTAINER_TYPE)">@L["container_type"]</MudTableSortLabel></MudTh>
+            <MudTh Class="text-right"><MudTableSortLabel SortBy="new Func<POContainer, object>(x=>x.QTY_SHIPPED)">@L["container_qty_in_container"]</MudTableSortLabel></MudTh>
+            <MudTh Class="text-right"><MudTableSortLabel SortBy="new Func<POContainer, object>(x=>x.LAST_UPDATE_DATE.Value.ToShortDateString())">@L["date_added"]</MudTableSortLabel></MudTh>
+            <MudTh Class="text-right w-24" Style="padding-right:1.2rem !important">@L["qty_loaded"]</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.CONTAINER_NUMBER</MudTd>
+            <MudTd Class="pl-2">@context.SEAL_NUMBER</MudTd>
+            <MudTd Class="text-center">@context.CONTAINER_TYPE</MudTd>
+            <MudTd Class="text-right" Style="padding-right:2rem !important">@context.QTY_SHIPPED</MudTd>
+            <MudTd Class="text-right pr-8">@context.LAST_UPDATE_DATE.Value.ToShortDateString()</MudTd>
+            <MudTd Class="text-right pr-5" Style="padding-top:0.5rem !important; padding-bottom: 0.5rem !important">@context.QTY_LOADED</MudTd>
+        </RowTemplate>
+        <PagerContent>
+            <MudTablePager RowsPerPageString=@L["rows_per_page"] />
+        </PagerContent>
+    </MudTable>
+</div>
+
+@code {
+    [Parameter] public POHeaderRequest OrderHeader { get; set; }
+    [Parameter] public int POLineId { get; set; }
+    [Parameter] public EventCallback<ContainerContent> OnAddNewContainer { get; set; }
+
+    [Inject] private IPurchaseOrderService POService { get; set; }
+    [Inject] private IPurchaseOrderService ContainersService { get; set; }
+
+    private MudTable<POContainer> _table = new MudTable<POContainer>();
+    private TableData<POContainer> Items;
+    private SearchContainerParameters Filter { get; set; } = new();
+    private bool IsSearch;
+    private bool resetPaging;
+    private bool _loading;
+
+    protected override Task OnAfterRenderAsync(bool firstRender)
+    {
+        Filter.Region = OrderHeader.SHIP_TO_SITE_REGION;
+        _table.SetRowsPerPage(new MetaData().PageSize);
+        return base.OnAfterRenderAsync(firstRender);
+    }
+
+    private void OnSearch()
+    {
+        IsSearch = true;
+        resetPaging = true;
+        _table.ReloadServerData();
+    }
+
+    private void OnClearFilters()
+    {
+        IsSearch = false;
+        resetPaging = true;
+        Filter = new();
+        _table.ReloadServerData();
+    }
+
+    private void HandleKeyUp(KeyboardEventArgs e)
+    {
+        if (e.Code == "Enter" || e.Code == "NumpadEnter")
+            OnSearch();
+        else if (e.Code == "Escape")
+            OnClearFilters();
+    }
+
+    private async Task<TableData<POContainer>> LoadContainersAsync(TableState state)
+    {
+        _loading = true;
+
+        PagingResponse<POContainer> response;
+
+        if (resetPaging)
+        {
+            state.Page = 0;
+            state.PageSize = new MetaData().PageSize;
+            resetPaging = false;
+        }
+
+        response = await POService.SearchContainersAsync(Filter.SetFilters(), OrderHeader.PO_HEADER_ID, state.PageSize, state.Page + 1);
+
+        _loading = false;
+
+        var result = _mapper.Map<IList<POContainer>>(response.Data);
+        Items = new TableData<POContainer>() { Items = result, TotalItems = response.MetaData.TotalCount };
+        return Items;
+    }
+
+    private async Task HandleQuantityChanged(int value, POContainer item)
+    {
+        if (value > 0 && !IsSameRegionPORegion(item))
+        {
+            Snackbar.Add(string.Format(L["container_mixed_po_region"]), Severity.Error);
+            return;
+        }
+
+        if (value > OrderHeader.QUANTITY_REMAINING + item.QTY_LOADED)
+        {
+            Snackbar.Add(string.Format(L["po_invalid_qty_loaded"]), Severity.Error);
+            return;
+        }
+
+        int oldQty = item.QTY_LOADED;
+
+        var request = new POContainerContentRequest();
+        _mapper.Map(item, request);
+        _mapper.Map(OrderHeader, request);
+
+        item.QTY_LOADED = value;
+        request.QTY_SHIPPED = value;
+        request.PO_LINE_ID = POLineId;
+
+        var response = await POService.AddPOToContainer(request);
+
+        if (response.HttpStatusCode == System.Net.HttpStatusCode.OK)
+        {
+            item.QTY_SHIPPED = item.QTY_SHIPPED - oldQty + value;
+            item.IsSelected = value > 0;
+            await OnAddNewContainer.InvokeAsync(response.Response);
+        }
+        else
+        {
+            item.QTY_LOADED = oldQty;
+            Snackbar.Add(string.Format(L["po_failed_loading_onto_container"]), Severity.Error);
+        }
+    }
+
+    private bool IsSameRegionPORegion(POContainer line)
+    {
+        return line.QTY_SHIPPED == 0 || OrderHeader.SHIP_TO_SITE_REGION == line.SHIP_TO_SITE_REGION;
+    }
+
+    private string HightlightSelected(POContainer line, int index)
+    {
+        if (line.IsSelected == true)
+            return "!bg-lime-50";
+        else
+            return "";
+    }
+}

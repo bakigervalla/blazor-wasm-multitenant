@@ -1,0 +1,42 @@
+﻿@*****************************************************************************
+
+* Copyright (c) 2024 iRobot Corporation. All Rights Reserved.
+*****************************************************************************@
+
+@page "/authentication/reset-password"
+@inject IStringLocalizer<Resource> L
+
+<AuthorizeView>
+    <NotAuthorized Context="Auth">
+        <MudText Typo="Typo.h4" GutterBottom="true">@L["new_password_title"]</MudText>
+        <MudTextField @bind-Value="@Password" Label="@L["new_password"]" Variant="Variant.Outlined" InputType="@_passwordInput" Adornment="Adornment.End" AdornmentIcon="@_passwordInputIcon" OnAdornmentClick="TogglePasswordVisibility" Class="my-4" />
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large" FullWidth="true" Class="mt-2">@L["new_password_title"]</MudButton>
+    </NotAuthorized>
+    <Authorized>
+        <RedirectToHome></RedirectToHome>
+    </Authorized>
+</AuthorizeView>
+
+@code {
+    string Password { get; set; } = string.Empty;
+
+    bool _passwordVisibility;
+    InputType _passwordInput = InputType.Password;
+    string _passwordInputIcon = Icons.Material.Filled.VisibilityOff;
+
+    void TogglePasswordVisibility()
+    {
+        @if (_passwordVisibility)
+        {
+            _passwordVisibility = false;
+            _passwordInputIcon = Icons.Material.Filled.VisibilityOff;
+            _passwordInput = InputType.Password;
+        }
+        else
+        {
+            _passwordVisibility = true;
+            _passwordInputIcon = Icons.Material.Filled.Visibility;
+            _passwordInput = InputType.Text;
+        }
+    }
+}

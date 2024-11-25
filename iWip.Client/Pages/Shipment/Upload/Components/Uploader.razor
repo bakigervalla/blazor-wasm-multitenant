@@ -1,0 +1,209 @@
+﻿@*****************************************************************************
+
+* Copyright (c) 2024 iRobot Corporation. All Rights Reserved.
+*****************************************************************************@
+
+@using System.Text;
+@using System.Net;
+@using iWip.Client.Common.Extensions;
+@using iWip.Client.Models.Shipment;
+@using iWip.Infrastructure.Common.Constants.Permission;
+@using iWip.Infrastructure.Models.Shipment;
+@using iWip.Infrastructure.Services.Auth;
+@using iWip.Infrastructure.Services.Shipment;
+@inject ISnackbar Snackbar
+@inject IStringLocalizer<Resource> L;
+@inject IMapper _mapper;
+
+<div class="w-full">
+    <MudStack Class="h-auto w-64 py-4">
+        @if (authService.User.HasAccess(new string[] { Permissions.Documents.Upload }))
+        {
+            <MudForm @ref="form">
+                <MudFileUpload T="IBrowserFile" OnFilesChanged="HandleInputFileChanged" Accept="@AcceptFileTypesExt" MaximumFileCount="1" Hidden="false" Class="flex-1"
+                               InputClass="absolute mud-width-full mud-height-full overflow-hidden z-20" InputStyle="opacity:0"
+                @ondragenter="@SetDragClass" @ondragleave="@ClearDragClass" @ondragend="@ClearDragClass">
+                    <ButtonTemplate>
+                        <MudPaper Outlined="true" Class="@DragClass">
+                            <MudText Typo="Typo.body2">@Text</MudText>
+                            <div class="flex gap-1 mt-2">
+                                @if (!string.IsNullOrEmpty(Model.FILE_NAME))
+                                {
+                                    <MudIcon Color="Color.Default" Icon="@Icons.Material.Filled.AttachFile" Size="Size.Small" />
+                                    <MudText Class="text-xs text-gray-400" Typo="Typo.body2">@Model.FILE_NAME</MudText>
+                                }
+                            </div>
+                        </MudPaper>
+                    </ButtonTemplate>
+                </MudFileUpload>
+                @if (FileType == UploadFileType.OTHER && !string.IsNullOrEmpty(Model.FILE_NAME))
+                {
+                    <MudTextField @bind-Value="Model.FILE_DESCRIPTION"
+                                  For="@(() => Model.FILE_DESCRIPTION)"
+                                  Style="height:48px; padding-top:5px"
+                                  Immediate="true"
+                                  Lines="3"
+                                  Variant="Variant.Outlined"
+                                  Placeholder="@L["description"]"
+                                  Class="upload-file-input-description" />
+                    <MudTextField @bind-Value="Model.FILE_COMMENT"
+                                  For="@(() => Model.FILE_COMMENT)"
+                                  Style="height:28px"
+                                  Immediate="true"
+                                  Variant="Variant.Outlined"
+                                  Placeholder="@L["comment"]"
+                                  Class="upload-file-input-comment" />
+                }
+                @if (!string.IsNullOrEmpty(Model.FILE_NAME))
+                {
+                    <MudToolBar DisableGutters="true" Class="justify-around gap-4">
+                        <MudButton OnClick="@(() => Upload(FileType == UploadFileType.BILL_OF_LADING ? TagType.Draft : TagType.Standard))" Disabled="@string.IsNullOrEmpty(Model.FILE_NAME)"
+                                   Color="Color.Primary" Size="Size.Small" Variant="Variant.Filled">@ButtonUploadText</MudButton>
+                        @if (FileType == UploadFileType.BILL_OF_LADING)
+                        {
+                            <MudButton OnClick="@(() => Upload(TagType.Final))" Disabled="@string.IsNullOrEmpty(Model.FILE_NAME)"
+                                       Size="Size.Small" Color="Color.Primary" Variant="Variant.Filled">@L["final"]</MudButton>
+                        }
+                        <MudButton OnClick="Clear" Disabled="@string.IsNullOrEmpty(Model.FILE_NAME)" Class="bg-neutral-200" Size="Size.Small" Variant="Variant.Filled">@ButtonCancelText</MudButton>
+                    </MudToolBar>
+                }
+            </MudForm>
+        }
+        else
+        {
+            <MudText Typo="Typo.h6">@Text</MudText>
+        }
+    </MudStack>
+    @if (Documents.Count > 0)
+    {
+        <Files Items=@Documents OnIgnoreFile="HandleIgnoreFile" />
+    }
+</div>
+
+@code {
+    MudForm form;
+
+    private static string FileListClass = "max-w-md space-y-1 text-gray-500 list-disc list-inside dark:text-gray-400";
+    private static string DefaultDragClass = "relative rounded-lg border-2 border-dashed pa-4 mt-4 mud-width-full mud-height-full z-10";
+    private string DragClass = DefaultDragClass;
+
+    [Inject] IAuthService authService { get; set; }
+
+    [Parameter] public string HouseBillOfLading { get; set; }
+    [Parameter] public int HouseBillOfLadingId { get; set; }
+    [Parameter] public string AcceptFileTypesExt { get; set; }
+    [Parameter] public string Text { get; set; }
+    [Parameter] public string ButtonUploadText { get; set; }
+    [Parameter] public string ButtonCancelText { get; set; }
+
+    [Parameter] public IList<ShippingDocument> Documents { get; set; }
+    [Parameter] public UploadFileType FileType { get; set; }
+
+    [Parameter] public EventCallback<ShippingDocument> OnInputFileChanged { get; set; }
+    [Parameter] public EventCallback<ShippingDocument> OnIgnoreFile { get; set; }
+
+    [Inject] private IShipmentService ShipmentService { get; set; }
+
+    private CreateFileModel Model { get; set; } = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        Model.SHIPMENT_NAME = HouseBillOfLading;
+        Model.HOUSE_BILL_OF_LADING_ID = HouseBillOfLadingId;
+    }
+
+    private async Task HandleInputFileChanged(InputFileChangeEventArgs e)
+    {
+        ClearDragClass();
+
+        Model.FILE_NAME = e.File.Name;
+        Model.FILE_MIMETYPE = e.File.ContentType;
+
+        using (MemoryStream stream = new MemoryStream())
+        {
+            using (Stream fileStream = e.File.OpenReadStream(maxAllowedSize: 1024 * 300))
+                await fileStream.CopyToAsync(stream);
+
+            Model.File = stream.ConvertToBase64();
+        }
+    }
+
+    private async Task Upload(TagType uploadType = TagType.Standard)
+    {
+        var fileExtension = Path.GetExtension(Model.FILE_NAME).ToLower();
+
+        Model.FILE_TYPE = FileType.ToString();
+        Model.FILE_TAG = uploadType == TagType.Standard ? null : uploadType.ToString();
+        Model.FILE_FORMAT = Path.GetExtension(Model.FILE_NAME).Substring(1).ToUpper();
+
+        await form.Validate();
+
+        if (!form.IsValid)
+            return;
+
+        // validate file types (default browser behavior FileUpload allows users to choose AllFiles option from the FileType dropdownlist)
+        if (FileType != UploadFileType.OTHER)
+        {
+            var isValidFileType = AcceptFileTypesExt.IndexOf(System.IO.Path.GetExtension(fileExtension)) >= 0;
+
+            if (!isValidFileType)
+            {
+                Snackbar.Add(L["invalid_file_type"], Severity.Error);
+                return;
+            }
+        }
+
+        // Save file metadata to db
+        var newDocument = _mapper.Map<ShippingDocument>(Model);
+        newDocument.MANUFACTURER = authService.User.MANUFACTURER.Value;
+
+        var response = await ShipmentService.AddShippingDocumentAsync(newDocument);
+
+        if (response.HttpStatusCode != HttpStatusCode.OK)
+        {
+            Snackbar.Add(L["doc_upload_failed"], Severity.Error);
+            return;
+        }
+
+        Snackbar.Add(L["upload_completed"], Severity.Success);
+        _mapper.Map(response.Response, Model);
+
+        OnInputFileChanged.InvokeAsync(response.Response);
+
+        await Clear();
+    }
+
+    private void HandleIgnoreFile(ShippingDocument document)
+    {
+        OnIgnoreFile.InvokeAsync(document);
+    }
+
+    private async Task Clear()
+    {
+        ClearDragClass();
+
+        Model = new CreateFileModel { SHIPMENT_NAME = HouseBillOfLading, HOUSE_BILL_OF_LADING_ID = HouseBillOfLadingId };
+
+        await Task.Delay(100);
+    }
+
+    private void SetDragClass()
+    {
+        DragClass = $"{DefaultDragClass} mud-border-primary";
+    }
+
+    private void ClearDragClass()
+    {
+        DragClass = DefaultDragClass;
+    }
+
+    private byte[] ReadStreamToByteArray(Stream stream)
+    {
+        using (MemoryStream memoryStream = new MemoryStream())
+        {
+            stream.CopyTo(memoryStream);
+            return memoryStream.ToArray();
+        }
+    }
+
+}

@@ -1,0 +1,58 @@
+﻿@*****************************************************************************
+
+* Copyright (c) 2024 iRobot Corporation. All Rights Reserved.
+*****************************************************************************@
+
+@using iWip.Infrastructure.Models.Shipment;
+@inject IStringLocalizer<Resource> L
+<MudDialog>
+    <DialogContent>
+        <MudDataGrid @ref="_dataGrid"
+                     Items="Items"
+                     RowsPerPage="15"
+                     Hover="true"
+                     Breakpoint="Breakpoint.Sm"
+                     LoadingProgressColor="Color.Info"
+                     Filterable="true"
+                     Sortable="true"
+                     Height="calc(100vh - 370px)"
+                     FixedHeader="true"
+                     Groupable="true"
+                     HorizontalScrollbar="true"
+                     Bordered="false"
+                     Dense="true"
+                     Outlined="false"
+                     Striped="true"
+                     ShowColumnOptions="false"
+                     ShowFilterIcons="false"
+                     MultiSelection="false"
+                     FilterMode="DataGridFilterMode.ColumnFilterRow"
+                     FilterCaseSensitivity="DataGridFilterCaseSensitivity.CaseInsensitive"
+                     Class="dg-nofiltericons">
+            <Columns>
+                <SelectColumn T="ShippingHeader" />
+                <PropertyColumn ShowFilterIcon="false" Property="x => x.HOUSE_BILL_OF_LADING" Title="@L["shipment"]"></PropertyColumn>
+                <PropertyColumn ShowFilterIcon="false" Property="x => x.DESCRIPTION" Title="@L["description"]"></PropertyColumn>
+                <PropertyColumn Class="col-nav-link" Property="x => x.LAST_UPDATE_DATE" Title="@L["ex-factory_date"]" />
+            </Columns>
+        </MudDataGrid>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">@L["cancel"]</MudButton>
+        <MudButton Color="Color.Primary" OnClick="Submit">@L["ok"]</MudButton>
+    </DialogActions>
+</MudDialog>
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; }
+    [Parameter] public IList<ShippingHeader> Items { get; set; }
+
+    private MudDataGrid<ShippingHeader> _dataGrid;
+
+    void Submit()
+    {
+        var selected = _dataGrid.SelectedItem;
+        MudDialog.Close(DialogResult.Ok(selected));
+    }
+
+    void Cancel() => MudDialog.Cancel();
+}

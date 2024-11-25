@@ -1,0 +1,29 @@
+﻿@*****************************************************************************
+
+* Copyright (c) 2024 iRobot Corporation. All Rights Reserved.
+*****************************************************************************@
+
+@page "/authentication/unauthorized"
+
+@layout EmptyLayout
+
+@inject IStringLocalizer<Resource> L
+
+<section class="flex items-center h-full p-16 dark:bg-gray-900 dark:text-gray-100">
+    <div class="container flex flex-col items-center justify-center px-5 mx-auto my-8">
+        <div class="max-w-md text-center">
+            <p class="text-9xl font-bold tracking-wider text-gray-300">401</p>
+            <p class="text-2xl">@L["unauthorized_title"]</p>
+            <p class="mt-4 mb-8 dark:text-gray-300">@((MarkupString)(L["unauthorized_subtitle"].Value))</p>
+            <MudButton Class="flex-grow-1 rounded-lg" Variant="Variant.Filled" ButtonType="ButtonType.Button"
+                       OnClick="@(()=>Navigation.NavigateTo("/"))">
+                @L["return_home"]
+            </MudButton>
+        </div>
+    </div>
+</section>
+
+@code {
+    [Inject]
+    public NavigationManager Navigation { get; set; } = default!;
+}

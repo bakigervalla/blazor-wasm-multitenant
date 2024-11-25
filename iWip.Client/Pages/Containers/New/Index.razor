@@ -1,0 +1,49 @@
+﻿@*****************************************************************************
+
+* Copyright (c) 2024 iRobot Corporation. All Rights Reserved.
+*****************************************************************************@
+
+@page "/containers/new"
+
+@using iWip.Infrastructure.Common.Constants.Permission;
+@using iWip.Infrastructure.Models.Containers;
+@using iWip.Client.Pages.Containers.New.Components;
+@using iWip.Client.Pages.Containers.Shared
+@inject NavigationManager _navigationManager;
+
+@attribute [Authorize(Permissions.Containers.Create)]
+
+@if (AttachPO)
+{
+    <ContainerContent Container="@Container" OnNavigateBack="@handleNavigateBack" />
+}
+else
+{
+    <NewContainer OnSave="HandleSave" Containers="@Containers" />
+}
+
+@code {
+    private bool AttachPO { get; set; }
+    private bool IsAttachPO { get; set; }
+    private IList<Container> Containers { get; set; } = new List<Container>();
+    private Container Container { get; set; }
+    private string componentType = "add";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var uri = _navigationManager.Uri;
+        int si = uri.IndexOf("#");
+        componentType = si > 0 ? uri.Substring(si + 1) : "";
+    }
+
+    private void HandleSave(Container container)
+    {
+        AttachPO = true;
+        Container = container;
+    }
+
+    private void handleNavigateBack()
+    {
+        AttachPO = false;
+    }
+}

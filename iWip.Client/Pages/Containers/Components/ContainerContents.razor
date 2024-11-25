@@ -1,0 +1,83 @@
+﻿@*****************************************************************************
+
+* Copyright (c) 2024 iRobot Corporation. All Rights Reserved.
+*****************************************************************************@
+
+@using iWip.Client.Common.Extensions;
+@using iWip.Infrastructure.Common.Pagination;
+@using iWip.Infrastructure.Models.Containers;
+@using iWip.Infrastructure.Services.Containers;
+@inject IStringLocalizer<Resource> L
+<MudDataGrid @ref="_dataGrid"
+             Items="Items"
+             RowsPerPage="15"
+             Hover="true"
+             Breakpoint="Breakpoint.Sm"
+             LoadingProgressColor="Color.Info"
+             Filterable="true"
+             Sortable="true"
+             Height="calc(100vh - 370px)"
+             FixedHeader="true"
+             Groupable="true"
+             HorizontalScrollbar="true"
+             Bordered="false"
+             Dense="true"
+             Outlined="false"
+             Striped="true"
+             FilterMode="DataGridFilterMode.ColumnFilterRow"
+             FilterCaseSensitivity="DataGridFilterCaseSensitivity.CaseInsensitive"
+             Class="dg-nofiltericons">
+    <Columns>
+        <PropertyColumn Property="x => x.CONTAINER_ID" Title="@L["container_id"]"></PropertyColumn>
+        <PropertyColumn Property="x => x.CONTAINER_LINE_ID" Title="@L["container_line"]"></PropertyColumn>
+        <PropertyColumn Property="x => x.PO_LINE_ID" Title="@L["po_line_id"]"></PropertyColumn>
+        <PropertyColumn Property="x => x.DATE_ADDED" Title="@L["date_added"]"></PropertyColumn>
+        <PropertyColumn Property="x => x.LAST_UPDATE_DATE" Title="@L["UPDATE DATE"]"></PropertyColumn>
+        <PropertyColumn CellClass="text-right" HeaderClass="text-right" Property="x => x.QTY_SHIPPED" Title="@L["shipped_quantity"]" Format="#,##0.00"></PropertyColumn>
+    </Columns>
+    <PagerContent>
+        <MudPagination Size="Size.Small" Variant="Variant.Filled" Count="@MetaData.TotalPages" Class="pa-4"
+                       SelectedChanged="PageChanged" />
+    </PagerContent>
+</MudDataGrid>
+
+@code {
+    [CascadingParameter] public int containerId { get; set; }
+
+    private MudDataGrid<ContainerContent> _dataGrid;
+
+    [Inject] private IContainersService ContainersService { get; set; }
+    [Inject] private IJSRuntime jSRuntime { get; set; }
+
+    private bool _loading;
+
+    private IList<ContainerContent> Items { get; set; }
+    private MetaData MetaData { get; set; } = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadContainerContentsAsync();
+    }
+
+    private async Task LoadContainerContentsAsync(int page = 1)
+    {
+        _loading = true;
+        var result = await ContainersService.GetByContainerContentsByIdAsync(containerId, page);
+        Items = result.Data;
+        MetaData = result.MetaData;
+
+        _loading = false;
+        StateHasChanged();
+    }
+
+    private async Task PageChanged(int page)
+    {
+        if (MetaData.CurrentPage != page)
+        {
+            await LoadContainerContentsAsync(page);
+            await jSRuntime.InvokeVoidAsync("blazorHelpers.scrollToFragment", "_table");
+
+        }
+    }
+}
+

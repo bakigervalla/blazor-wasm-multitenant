@@ -1,0 +1,159 @@
+﻿@*****************************************************************************
+
+* Copyright (c) 2024 iRobot Corporation. All Rights Reserved.
+*****************************************************************************@
+
+@using System.Net;
+@using iWip.Client.Components.Shared.Dialogs;
+@using iWip.Infrastructure.Common;
+@using iWip.Infrastructure.Models.Users;
+@using iWip.Infrastructure.Services.Auth;
+@using iWip.Infrastructure.Services.Users;
+@using permissions = iWip.Infrastructure.Common.Constants.Permission;
+
+@inject IStringLocalizer<Resource> L
+@inject IMapper _mapper;
+@inject IAuthService authService
+
+<MudDialog Class="flex flex-col h-4/6 permissions">
+    <DialogContent>
+        <div class="mb-8">
+            <MudSelect T="int" Label=@L["role"] MultiSelection=false Variant="Variant.Outlined" Dense=false SelectedValues="@SelectedRoles" ValueChanged="@OnSelectedRoleChanged">
+                @foreach (var role in Roles)
+                {
+                    <MudSelectItem Value="@role.ID">@RoleNameText(role)</MudSelectItem>
+                }
+            </MudSelect>
+        </div>
+        @if (!_loading)
+        {
+            <div class="flex gap-4 h-full">
+                <MudPaper Class="w-96" Height="calc(100vh - 37em);" Style="overflow:auto; overflow-y: auto">
+                    <MudList Clickable="true" SelectedValue="SelectedGroup">
+                        @foreach (var group in Groups)
+                        {
+                            <MudListItem Value="@group.Key" Text="@group.Value" OnClick="@(() => SetSelectedGroup(group.Key))" />
+                        }
+                    </MudList>
+                </MudPaper>
+                <MudPaper Class="w-full" Height="calc(100vh - 37em);">
+                    <MudAlert Severity="Severity.Normal">@SelectedGroup</MudAlert>
+                    <MudList Clickable="false" Class="pl-2">
+                        @if (SelectedGroup != null)
+                        {
+                            foreach (var permission in Permissions.Where(x => x.Name.Split('.')[1] == SelectedGroup))
+                            {
+                                <MudCheckBox T="bool" Checked="@permission.Active" CheckedChanged="@((e)=>SetIsActive(e, permission))">@PermissionNameText(permission)</MudCheckBox>
+                            }
+                        }
+                    </MudList>
+                </MudPaper>
+            </div>
+        }
+    </DialogContent>
+    <DialogActions>
+        @if (!_loading)
+        {
+            <div class="flex w-full justify-between px-4">
+                <MudButton OnClick="Cancel">@L["cancel"]</MudButton>
+                @if (authService.User.IsInRole(new string[] { permissions.Roles.Role.HostAdmin, permissions.Roles.Role.TenantAdmin }))
+                {
+                    <MudButton Color="Color.Primary" Disabled=@_saving OnClick="Submit">@SaveButton</MudButton>
+                }
+            </div>
+        }
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; }
+
+    [Parameter] public IList<Role> Roles { get; set; }
+    [Parameter] public Role SelectedRole { get; set; }
+
+    [Inject] private IUsersService UserService { get; set; }
+
+    public IDictionary<string, string> Groups { get; set; }
+    public string SelectedGroup { get; set; }
+    private IEnumerable<int> SelectedRoles { get; set; }
+    public IEnumerable<Permission> Permissions { get; set; }
+    public IList<Permission> UpdatedPermissions { get; set; } = new List<Permission>();
+
+    private bool _loading;
+    private bool _saving;
+
+    protected override async Task OnInitializedAsync()
+    {
+        SelectedRoles = new HashSet<int>() { { SelectedRole.ID } };
+        await GetPermissionsByRole();
+    }
+
+    void Cancel() => MudDialog.Cancel();
+
+    private async Task GetPermissionsByRole()
+    {
+        _loading = true;
+        Permissions = await UserService.GetPermissionsByRoleAsync(SelectedRole.ID);
+
+        Groups = Permissions.GroupBy(x => x.Name.Split('.')[1]).ToDictionary(g => g.Key, g => g.First().Name.Split('.')[1]);
+        SelectedGroup = Groups.FirstOrDefault().Key;
+
+        _loading = false;
+    }
+
+    private void SetIsActive(bool active, Permission permission)
+    {
+        permission.Active = active;
+
+        if (UpdatedPermissions.Any(p => p.ID == permission.ID))
+            UpdatedPermissions.First(p => p.ID == permission.ID).Active = active;
+        else
+            UpdatedPermissions.Add(permission);
+    }
+
+    private async Task Submit()
+    {
+        _saving = true;
+
+        HttpResponse<string> response = await UserService.UpdatePermissionsAsync(UpdatedPermissions);
+
+        if (response.HttpStatusCode != HttpStatusCode.OK)
+            Snackbar.Add(L["permissions_save_failed"], Severity.Error);
+        else
+        {
+            Snackbar.Add(L["permissions_save_successfully"], Severity.Success);
+            MudDialog.Close();
+        }
+
+        _saving = false;
+    }
+
+    private async Task OnSelectedRoleChanged(int roleId)
+    {
+        if (SelectedRole.ID == roleId)
+            return;
+
+        SelectedRole = Roles.FirstOrDefault(x => x.ID == roleId);
+        SelectedRoles = new HashSet<int>() { { SelectedRole.ID } };
+
+        await GetPermissionsByRole();
+    }
+
+    private void SetSelectedGroup(string item)
+    {
+        SelectedGroup = item;
+    }
+
+
+    private string? RoleNameText(Role role)
+    {
+        return $"{role.Name} - {(!role.MANUFACTURER.HasValue || role.MANUFACTURER == 0 ? "iRobot" : role.Tenant.DisplayName)}";
+    }
+
+    private string? PermissionNameText(Permission permission)
+    {
+        return permission.Name.Split(".")[^1];
+    }
+
+    private string SaveButton { get => _saving ? L["saving"] : L["save"]; }
+}

@@ -1,0 +1,36 @@
+﻿@*****************************************************************************
+
+* Copyright (c) 2024 iRobot Corporation. All Rights Reserved.
+*****************************************************************************@
+
+
+@using iWip.Client.Common.Constants;
+@inject IStringLocalizer<Resource> L
+
+<div class="flex ml-6" aria-label="Breadcrumb">
+    <ol class="flex row inline-flex items-center space-x-1 md:space-x-2 rtl:space-x-reverse">
+        @if (Links != null)
+        {
+            @foreach (var link in Links.OrderBy(x => x.OrderIndex))
+            {
+                if (link.IsActive)
+                {
+                    <li class="inline-flex items-center active " aria-current="page">@((MarkupString)@link.Title)</li>
+                }
+                else
+                {
+                    <li class="breadcrumb-item"><a class="" href="@link.Address">@((MarkupString)@link.Title)</a></li>
+                }
+            }
+        }
+    </ol>
+</div>
+
+@code {
+
+    [Parameter]
+    public List<Models.BreadcrumbLink> Links { get; set; }
+    protected override Task OnParametersSetAsync() => base.OnParametersSetAsync();
+    private string separator { get; set; } = "";
+
+}

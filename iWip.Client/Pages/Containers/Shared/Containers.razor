@@ -1,0 +1,55 @@
+﻿@*****************************************************************************
+
+* Copyright (c) 2024 iRobot Corporation. All Rights Reserved.
+*****************************************************************************@
+
+@using iWip.Infrastructure.Common.Constants.Permission;
+@using iWip.Infrastructure.Models.Containers;
+@using iWip.Infrastructure.Services.Auth;
+@inject IStringLocalizer<Resource> L
+@inject IAuthService authService
+
+<MudCard Class="flex flex-col w-2/5 ml-8 p-4 shadow-none">
+    <InfoBox ClassNames="pb-4" Title="@L["containers"]" />
+    <MudTable Items="@Items"
+              Dense="true"
+              Hover="true"
+              Breakpoint="Breakpoint.Sm"
+              FixedHeader="true"
+              Bordered="false"
+              Outlined="false"
+              Striped="true"
+              ReadOnly=true
+              Height="20rem">
+        <HeaderContent>
+            <MudTh>@L["container_no"]</MudTh>
+            <MudTh Class="text-right">@L["container_qty_in_container"]</MudTh>
+            <MudTh></MudTh>
+            <MudTh></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd Class="text-center pr-10">@context.CONTAINER_NUMBER</MudTd>
+            <MudTd Class="text-right">@context.QTY_SHIPPED</MudTd>
+            <MudTd>
+                @if (authService.User.HasAccess(new string[] { Permissions.Containers.Edit }))
+                {
+                    <MudLink OnClick="@(async () => await OnEditContainer.InvokeAsync(context.CONTAINER_ID))">@L["edit"]</MudLink>
+                }
+            </MudTd>
+            <MudTd>
+                @if (authService.User.HasAccess(new string[] { Permissions.ContainerContent.View }))
+                {
+                    <MudLink OnClick="@(async () => await OnAddContainer.InvokeAsync(context))">@L["contents"]</MudLink>
+                }
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+</MudCard>
+
+@code {
+    [Parameter] public IEnumerable<Container> Items { get; set; }
+
+    [Parameter] public EventCallback<Container> OnAddContainer { get; set; }
+    [Parameter] public EventCallback<int> OnEditContainer { get; set; }
+
+}

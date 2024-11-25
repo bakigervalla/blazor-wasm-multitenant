@@ -1,0 +1,80 @@
+﻿@*****************************************************************************
+
+* Copyright (c) 2024 iRobot Corporation. All Rights Reserved.
+*****************************************************************************@
+
+@using System.Net;
+@using AutoMapper;
+@using iWip.Client.Components.Shared.Dialogs;
+@using iWip.Client.Models.Containers;
+@using iWip.Client.Pages.Containers.Shared;
+@using iWip.Infrastructure.Common.Constants.Permission;
+@using iWip.Infrastructure.Models.Containers;
+@using iWip.Infrastructure.Services.Auth;
+@using iWip.Infrastructure.Services.Containers;
+@inject IDialogService DialogService;
+@inject IStringLocalizer<Resource> L;
+@inject IMapper _mapper;
+@inject IAuthService authService
+
+<div class="flex flex-col items-center w-2/4 p-3 shadow-sm rounded-lg">
+    <MudForm Container="@Container" Class="view-container flex flex-col gap-4" Style="width:70%">
+        <InfoBox Title="@L["container_details"]"
+                 ClassNames="pb-6" />
+        <MudItem Class="mr-14">
+            <label>@L["shipment"]</label>
+            <MudTextField Disabled Value="Container.Shipping.HOUSE_BILL_OF_LADING"
+                          Variant="Variant.Outlined"
+                          Margin="Margin.Dense"
+                          Class="bg-disabled" />
+        </MudItem>
+        <MudItem Class="flex row-end-1 gap-4">
+            <MudItem>
+                <label>@L["container_no"]</label>
+                <MudTextField Disabled Value="Container.CONTAINER_NUMBER"
+                              Variant="Variant.Outlined"
+                              Margin="Margin.Dense"
+                              Class="bg-disabled text-right" />
+            </MudItem>
+            <MudItem>
+                <label>@L["container_seal_no"]</label>
+                <MudTextField Disabled Value="Container.SEAL_NUMBER"
+                              Variant="Variant.Outlined"
+                              Margin="Margin.Dense"
+                              Class="bg-disabled text-right" />
+            </MudItem>
+        </MudItem>
+        <MudItem Class="flex row-end-1 gap-4">
+            <MudItem>
+                <label>@L["container_type"]</label>
+                <MudTextField Disabled Value="@Container.CONTAINER_TYPE"
+                              Variant="Variant.Outlined"
+                              Margin="Margin.Dense"
+                              Class="bg-disabled" />
+            </MudItem>
+            <MudItem>
+                <label>@L["container_qty_in_container"]</label>
+                <MudTextField Disabled Value="@Container.QTY_SHIPPED"
+                              Variant="Variant.Outlined"
+                              Margin="Margin.Dense"
+                              Class="bg-disabled text-right" />
+            </MudItem>
+        </MudItem>
+    </MudForm>
+    <MudCardActions Class="flex w-full justify-center pt-8">
+        <MudButton Variant="Variant.Filled" Color="Color.Default" Class="mr-16 w-32" OnClick="@OnGoBack">@L["back"]</MudButton>
+        @if (authService.User.HasAccess(new string[] { Permissions.Containers.Edit }))
+        {
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="w-32" OnClick="@(() => OnEdit.InvokeAsync(ViewType.EDIT))">@L["edit"]</MudButton>
+        }
+    </MudCardActions>
+
+</div>
+
+@code {
+
+    [Parameter] public Container Container { get; set; }
+    [Parameter] public EventCallback<ViewType> OnEdit { get; set; }
+    [Parameter] public EventCallback OnGoBack { get; set; }
+
+}

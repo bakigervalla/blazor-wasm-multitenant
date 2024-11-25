@@ -1,0 +1,44 @@
+﻿@*****************************************************************************
+
+* Copyright (c) 2024 iRobot Corporation. All Rights Reserved.
+*****************************************************************************@
+
+@inherits LayoutComponentBase
+
+<MudDialogProvider />
+<MudSnackbarProvider />
+<MudThemeProvider Theme="_theme" />
+
+<MudLayout>
+    <div class="page">
+        <main>
+            <article class="content px-4">
+                @Body
+            </article>
+        </main>
+    </div>
+</MudLayout>
+
+@code {
+    private readonly MudTheme _theme = new()
+        {
+            Palette = new Palette
+            {
+                Primary = Colors.Green.Default,
+                AppbarBackground = Colors.Red.Default,
+                GrayDefault = Colors.Red.Default,
+            },
+            LayoutProperties = new LayoutProperties
+            {
+                AppbarHeight = "80px",
+                DefaultBorderRadius = "12px"
+            },
+            Typography = new Typography
+            {
+                Default = new Default
+                {
+                    FontSize = "0.9rem",
+                }
+            }
+        };
+}

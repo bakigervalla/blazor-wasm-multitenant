@@ -1,0 +1,75 @@
+@*****************************************************************************
+
+* Copyright (c) 2024 iRobot Corporation. All Rights Reserved.
+*****************************************************************************@
+
+@using iWip.Infrastructure.Models.Dashboard;
+@inject IStringLocalizer<Resource> L
+@inherits MudComponentBase
+
+<MudElement @attributes="@UserAttributes"
+            Class="@Classname"
+            Style="@Style">
+    <MudPaper Class="pa-4"
+              Elevation="2"
+              Style="height: 612px;">
+        <div class="d-flex align-center"
+             style="height: 60px">
+            <MudText Typo="Typo.h6">
+                @L["po_distribution"]
+            </MudText>
+            <MudSpacer />
+            <div style="width: 70px">
+                <MudSelect Dense="true"
+                           FullWidth="true"
+                           Margin="Margin.Dense"
+                           T="int"
+                           Value="@_selectedYear"
+                           ValueChanged="UpdateSeries">
+                    @foreach (var year in Years)
+                    {
+                        <MudSelectItem Value="@year">@year</MudSelectItem>
+                    }
+                </MudSelect>
+            </div>
+        </div>
+        @if (!_loading && _chartOptions != null)
+        {
+            <ApexChart ChartOptions="_chartOptions"
+                       ChartId="orderDistribution"
+                       TCategory="string"
+                       TSeries="SeriesModel<int>" />
+        }
+        else
+        {
+            <div class="bar-chart-skeleton">
+                <MudSkeleton Class="bar" Height="60%" Animation="Animation.Wave" />
+                <MudSkeleton Class="bar" Height="40%" Animation="Animation.Wave" />
+                <MudSkeleton Class="bar" Height="80%" Animation="Animation.Wave" />
+                <MudSkeleton Class="bar" Height="60%" Animation="Animation.Wave" />
+                <MudSkeleton Class="bar" Height="40%" Animation="Animation.Wave" />
+                <MudSkeleton Class="bar" Height="80%" Animation="Animation.Wave" />
+                <MudSkeleton Class="bar" Height="60%" Animation="Animation.Wave" />
+                <MudSkeleton Class="bar" Height="40%" Animation="Animation.Wave" />
+                <MudSkeleton Class="bar" Height="80%" Animation="Animation.Wave" />
+            </div>
+        }
+    </MudPaper>
+</MudElement>
+
+<style>
+    .bar-chart-skeleton {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        height: 400px;
+        padding: 0 8px;
+    }
+
+    .bar {
+        background-color: #e0e0e0;
+        width: 20px;
+        margin-right: 8px;
+        transition: height 1s;
+    }
+</style>

@@ -1,0 +1,178 @@
+@*****************************************************************************
+
+* Copyright (c) 2024 iRobot Corporation. All Rights Reserved.
+*****************************************************************************@
+
+@using Fluxor.Blazor.Web.Components;
+@using MudBlazor.Extensions
+@using iWip.Infrastructure.Common.Constants;
+@using iWip.Client.Models.SideMenu;
+@inject IStringLocalizer<Resource> L
+@inherits FluxorComponent
+
+<MudDrawer Breakpoint="Breakpoint.Md"
+           Class="side-menu"
+           Elevation="0"
+           MiniWidth="100px"
+           Open="IsExpanded"
+           OpenChanged="@(e => SideMenuDrawerOpenChanged.InvokeAsync(e))"
+           OpenMiniOnHover="true"
+           Variant="@(CanMiniSideMenuDrawer ? DrawerVariant.Mini : DrawerVariant.Responsive)"
+           Width="280px">
+    <MudDrawerHeader Class="align-center d-flex justify-center pa-0">
+        <img class="@(IsExpanded ? "ml-6 mr-2" : "")" width="40" src="/images/logo_icon.png" />
+
+        @if (IsExpanded)
+        {
+            <MudText Typo="Typo.h6">
+                <b>@L["appname"]</b>
+            </MudText>
+            <MudSpacer />
+            <MudTooltip Arrow="true"
+                        Text="@(IsExpanded ? L["expand"] : L["collapse"])">
+                <MudToggleIconButton Class="mr-2"
+                                     Color="@Color.Primary"
+                                     ToggledColor="Color.Error"
+                                     Icon="@Icons.Material.Filled.MenuOpen"
+                                     Size="Size.Small"
+                                     Toggled="SideMenuExpanded"
+                @onclick="@ToggleSideMenuDrawerOpen"
+                                     ToggledIcon="@Icons.Material.Filled.MenuOpen"
+                                     ToggledSize="Size.Small" />
+            </MudTooltip>
+        }
+    </MudDrawerHeader>
+
+    @if (IsExpanded)
+    {
+        <div class="mx-6">
+            <MudButton Class="d-flex justify-start my-6 user-button" FullWidth="true" OnClick="@(() => NavigationManager.NavigateTo("/account"))">
+                <ChildContent>
+                    <div class="align-center d-flex">
+                        <MudIcon Color="Color.Primary" Size=@Size.Large Icon="@Icons.Material.Outlined.AccountCircle" />
+                    </div>
+                    <div class="d-flex flex-column px-4">
+                        <MudText Class="d-flex justify-start text-left"
+                                 Typo="Typo.body2">
+                            @User.DisplayName
+                        </MudText>
+                        <MudText Class="d-flex justify-start"
+                                 Typo="Typo.caption">
+                            @User.Email
+                        </MudText>
+                    </div>
+                </ChildContent>
+            </MudButton>
+        </div>
+    }
+    else
+    {
+        <div class="d-flex justify-center my-6">
+            <MudIcon Color="Color.Primary" Size=@Size.Large Icon="@Icons.Material.Outlined.AccountCircle" />
+        </div>
+    }
+
+    <MudNavMenu>
+        @foreach (var section in _menuSections)
+        {
+            @if (!User.HasAccess(section.Permissions) && !User.IsInRole(section.Roles))
+                continue;
+            @if (IsExpanded)
+            {
+                <div class="ml-6 my-3">
+                    <MudText Typo="Typo.caption">
+                        <b>
+                            @(L[section.Title])
+                        </b>
+                    </MudText>
+                </div>
+            }
+
+            @foreach (var sectionItem in section.SectionItems)
+            {
+                @if (!User.HasAccess(sectionItem.Permissions) && !User.IsInRole(sectionItem.Roles))
+                    continue;
+
+                if (sectionItem.IsParent)
+                {
+                    <MudNavGroup Icon="@sectionItem.Icon"
+                                 Title="@L[sectionItem.Title]">
+                        @foreach (var menuItem in sectionItem.MenuItems)
+                        {
+                            @if (!User.HasAccess(menuItem.Permissions) && !User.IsInRole(menuItem.Roles))
+                                continue;
+                            @if (IsExpanded)
+                            {
+                                <MudNavLink Disabled="@(menuItem.PageStatus != PageStatus.Completed)"
+                                            Href="@(menuItem.Href)"
+                                            Match="NavLinkMatch.All">
+                                    <div class="d-flex">
+                                        @L[menuItem.Title]
+                                        @if (menuItem.PageStatus != PageStatus.Completed)
+                                        {
+                                            <MudSpacer />
+                                            <MudChip Class="mr-4"
+                                                     Color="@Color.Primary"
+                                                     Size="Size.Small"
+                                                     Variant="Variant.Text">
+                                                @menuItem.PageStatus.ToDescriptionString()
+                                            </MudChip>
+                                        }
+                                    </div>
+                                </MudNavLink>
+                            }
+                        }
+                    </MudNavGroup>
+                }
+                else
+                {
+                    <MudNavLink Disabled="@(sectionItem.PageStatus != PageStatus.Completed)"
+                                Href="@(sectionItem.Href)"
+                                Icon="@(sectionItem.Icon)"
+                                Match="NavLinkMatch.All">
+                        <div class="d-flex">
+                            @L[sectionItem.Title]
+                            @if (sectionItem.PageStatus != PageStatus.Completed)
+                            {
+                                <MudSpacer />
+                                <MudChip Class="mr-4"
+                                         Color="@Color.Primary"
+                                         Size="Size.Small"
+                                         Variant="Variant.Text">
+                                    @sectionItem.PageStatus.ToDescriptionString()
+                                </MudChip>
+                            }
+                        </div>
+                    </MudNavLink>
+                }
+            }
+        }
+    </MudNavMenu>
+</MudDrawer>
+
+<style>
+
+    .mud-nav-link {
+        white-space: normal !important;
+        padding: 12px 16px 12px 38px;
+    }
+
+        .mud-nav-link.active:not(.mud-nav-link-disabled) {
+            border-right: 3px solid var(--mud-palette-primary);
+            background-color: rgba(var(--mud-palette-primary-rgb), 0.1)
+        }
+
+    .side-menu {
+        border-right: 1px solid var(--mud-palette-table-lines)
+    }
+
+    .user-button {
+        text-transform: none;
+        background: rgba(var(--mud-palette-primary-rgb), 0.1)
+    }
+
+    .side-menu .mud-chip.mud-chip-size-small {
+        font-size: 10px;
+        height: 18px;
+    }
+</style>

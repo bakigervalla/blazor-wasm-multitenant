@@ -1,0 +1,35 @@
+﻿@*****************************************************************************
+
+* Copyright (c) 2024 iRobot Corporation. All Rights Reserved.
+*****************************************************************************@
+
+@inherits ComponentBase
+
+@code {
+
+    [CascadingParameter] private Task<AuthenticationState> AuthStateTask { get; set; } = null!;
+    [Parameter]public bool IsAuthenticated { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateTask;
+        if (authState?.User?.Identity is null || !authState.User.Identity.IsAuthenticated)
+        {
+            var returnUrl = NavigationManager.ToBaseRelativePath(NavigationManager.Uri);
+
+            if (!IsAuthenticated)
+            {
+                if (string.IsNullOrWhiteSpace(returnUrl))
+                    NavigationManager.NavigateTo("/authentication/login");
+                else
+                    NavigationManager.NavigateTo($"/authentication/login?returnUrl={returnUrl}");
+            }
+            else
+            {
+                NavigationManager.NavigateTo("/authentication/login", true);
+            }
+        }
+
+    }
+
+}

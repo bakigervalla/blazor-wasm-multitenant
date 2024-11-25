@@ -1,0 +1,91 @@
+﻿@*****************************************************************************
+
+* Copyright (c) 2024 iRobot Corporation. All Rights Reserved.
+*****************************************************************************@
+
+@page "/account"
+
+@using iWip.Client.Pages.Identity.Account.Components
+@using iWip.Infrastructure.Common.Constants;
+@using iWip.Infrastructure.Models.Users;
+@using iWip.Infrastructure.Services.Auth;
+@inject IAuthService authService
+@inject IStringLocalizer<Resource> L
+
+@attribute [Authorize]
+
+
+<div class="md:flex my-16">
+    <ul class="flex-column space-y space-y-4 text-sm font-medium text-gray-500 dark:text-gray-400 md:me-4 mb-4 mt-4 mt-16 md:mb-0">
+        <li>
+            <MudButton OnClick="@(() => ShowComponent(ComponentType.Profile))" Class="@GetStyle("Profile")">
+                <MudIcon Icon="@Icons.Material.Filled.AccountBox" Class="mx-3" Size="Size.Small" />
+                @L["profile"]
+            </MudButton>
+        </li>
+        @if (authService.User.Tenant is not null)
+        {
+            <li>
+                <MudButton OnClick="@(() => ShowComponent(ComponentType.Tenant))" Class="@GetStyle("Tenant")">
+                    <MudIcon Icon="@Icons.Material.Filled.Workspaces" Class="mx-3" Size="Size.Small" />
+                    @L["company_profile"]
+                </MudButton>
+            </li>
+        }
+        <li>
+            <MudButton OnClick="@(() => ShowComponent(ComponentType.ChangePassword))" Class="@GetStyle("ChangePassword")">
+                <MudIcon Icon="@Icons.Material.Filled.Password" Class="mx-3" Size="Size.Small" />
+                @L["change_password"]
+            </MudButton>
+        </li>
+    </ul>
+
+    <div class="px-6 text-medium w-full">
+        @switch (ComponentTypes)
+        {
+            case ComponentType.Tenant:
+                <TenantProfile />
+                break;
+            case ComponentType.ChangePassword:
+                <ChangePassword />
+                break;
+                break;
+            default:
+                <Profile />
+                break;
+        }
+    </div>
+
+</div>
+
+@code {
+    private ComponentType ComponentTypes { get; set; } = ComponentType.Profile;
+    private string liClass = "justify-start text-left inline-flex px-4 py-3 rounded-lg hover:text-gray-900 bg-gray-50 hover:bg-gray-100 w-full dark:bg-gray-800 dark:hover:bg-gray-700 dark:hover:text-white";
+    private string activeClass = "text-left border border-solid border-slate-500 justify-start inline-flex px-4 py-3 rounded-lg hover:text-gray-900 bg-gray-50 hover:bg-gray-100 w-full dark:bg-gray-800 dark:hover:bg-gray-700 dark:hover:text-white";
+
+    private void ShowComponent(ComponentType componentType)
+    {
+        ComponentTypes = componentType;
+    }
+
+    enum ComponentType
+    {
+        Profile,
+        Tenant,
+        ChangePassword
+    }
+
+    private string GetStyle(string type)
+    {
+        if (Enum.TryParse<ComponentType>(type, out var parsedType))
+        {
+            if (ComponentTypes == parsedType)
+            {
+                return activeClass;
+            }
+        }
+
+        return liClass;
+    }
+}
+

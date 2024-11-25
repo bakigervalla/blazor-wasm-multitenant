@@ -1,0 +1,724 @@
+﻿@*****************************************************************************
+
+* Copyright (c) 2024 iRobot Corporation. All Rights Reserved.
+*****************************************************************************@
+
+@page "/shipment/details"
+@page "/shipment/details/{HouseBillOfLading}"
+
+@using System.Net;
+@using iWip.Client.Components.Shared.Dialogs;
+@using iWip.Client.Models.Shipment;
+@using iWip.Infrastructure.Common.Constants;
+@using iWip.Infrastructure.Common.Constants.Permission;
+@using iWip.Infrastructure.Common.Pagination;
+@using iWip.Infrastructure.Models.Orders;
+@using iWip.Infrastructure.Models.Shipment.Request;
+@using iWip.Infrastructure.Models.Shipment;
+@using iWip.Client.Pages.Shipment.Details.Components;
+@using iWip.Infrastructure.Models.Shipment.Response;
+@using iWip.Infrastructure.Services.Auth;
+@using iWip.Infrastructure.Services.Shipment;
+@inject IDialogService DialogService;
+@inject ISnackbar Snackbar;
+@inject Navigation _navigation;
+@inject IMapper _mapper;
+@inject IStringLocalizer<Resource> L;
+@inject IAuthService authService
+
+@attribute [Authorize(Permissions.Shipments.View)]
+
+<section class="flex w-9/12 gap-8 mx-auto">
+    <div class="w-8/9">
+        <MudForm @ref="form">
+            <div>
+                <MudItem Class="flex flex-col-2 items-center gap-4 w-[34rem]">
+                    <label class="text-slate-600 text-xs font-bold">@L["shipment_name"]:</label>
+                    <MudTextField @bind-Value="Model.HOUSE_BILL_OF_LADING"
+                                  For="@(() => Model.HOUSE_BILL_OF_LADING)"
+                                  OnKeyUp="HandleKeyUp"
+                                  OnBlur="HandleOnBlur"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense"
+                                  Class="@(IsSaveValid ? "w-96 py-0 px-2" : "mud-input-error w-96 py-0 px-2")" />
+                </MudItem>
+                @if (!IsSaveValid && form.IsValid)
+                {
+                    <MudItem Class="grid grid-cols-[10%_70%] gap-4">
+                        <label />
+                        <div class="mud-input-control-helper-container px-2">
+                            <p class="mud-input-helper-text mud-input-error">
+                                <div class="d-flex">
+                                    <div class="me-auto">
+                                        @string.Format(L["cannot_be_empty"], L["shipment_name"])
+                                    </div>
+                                </div>
+                            </p>
+                        </div>
+                    </MudItem>
+                }
+            </div>
+            <div class="bg-slate-50 px-6 py-2 mt-4">
+                <h6 class="text-slate-400 text-sm mt-4 mb-3 font-bold uppercase">@L["shipment_info"]</h6>
+                <div class="flex flex-wrap">
+                    <div class="w-full lg:w-6/12 px-4">
+                        <MudForm Disabled=@FormDisable("SHIPMENT_METHODS")>
+                            <div class="space-y-8">
+                                <ForwarderLookup SelectedValue="@Model.FORWARDER"
+                                                 For="@(() => Model.FORWARDER)"
+                                                 OnValueChanged="@((e) => SetPort(PortType.FORWARDER, e))" />
+                            </div>
+                            <div class="my-2">
+                                @if (!_loading)
+                                {
+                                    <ShippingMethods ShipMethodOne="@Model.SHIP_VIA"
+                                                     ShipMethodTwo="@Model.SHIP_METHOD_2"
+                                                     OnShipMethodOneValueChanged="SetShipMethodOne"
+                                                     OnShipMethodTwoValueChanged="SetShipMethodTwo"
+                                                     IsValidMethod1="@IsValidShipVia"
+                                                     IsValidMethod2="@IsValidShipMethod1" />
+                                }
+                            </div>
+                            <MudItem Class="grid grid-cols-[32%_70%] gap-1">
+                                <label>@VeselLabel()</label>
+                                <MudTextField @bind-Value="Model.SHIP_INFO_1"
+                                              For="@(() => Model.SHIP_INFO_1)"
+                                              Variant="Variant.Outlined"
+                                              Margin="Margin.Dense" />
+                            </MudItem>
+                            @if (Model.SHIP_VIA?.ToLower() == "land")
+                            {
+                                <MudItem Class="grid grid-cols-[32%_70%] gap-1">
+                                    <label>@L["vehicle_license"]</label>
+                                    <MudTextField @bind-Value="Model.SHIP_INFO_2"
+                                                  For="@(() => Model.SHIP_INFO_2)"
+                                                  Variant="Variant.Outlined"
+                                                  Margin="Margin.Dense" />
+                                </MudItem>
+                            }
+                            <MudItem Class="grid grid-cols-[32%_70%] gap-1 mt-8">
+                                <label>@L["etd"]</label>
+                                <MudDatePicker @bind-Date="Model.EST_TIME_DEPARTURE"
+                                               For="@(() => Model.EST_TIME_DEPARTURE)"
+                                               Variant="Variant.Outlined"
+                                               Margin="Margin.Dense" />
+                            </MudItem>
+                            <MudItem Class="grid grid-cols-[32%_70%] gap-1">
+                                <label>@L["eta"]</label>
+                                <MudDatePicker @bind-Date="Model.EST_TIME_ARRIVAL"
+                                               For="@(() => Model.EST_TIME_ARRIVAL)"
+                                               Variant="Variant.Outlined"
+                                               Disabled=@IsDepartureDateNull
+                                               MinDate=@Model.EST_TIME_DEPARTURE
+                                               Margin="Margin.Dense" />
+                            </MudItem>
+                            <div class="space-y-8">
+                                <PortLookup Items="Ports.Loading"
+                                            Label="@L["port_of_loading"]"
+                                            For="@(() => Model.PORT_OF_ORIGIN)"
+                                            SelectedValue="@Model.PORT_OF_ORIGIN"
+                                            OnValueChanged="@((e) => SetPort(PortType.LOADING, e))"
+                                            IsCourierManaged=@IsCourierManagedDefaulted />
+                            </div>
+                            <div class="space-y-8">
+                                <PortLookup Items="Ports.Discharge"
+                                            Label="@L["port_of_discharge"]"
+                                            For="@(() => Model.PORT_OF_DISCHARGE)"
+                                            SelectedValue="@Model.PORT_OF_DISCHARGE"
+                                            OnValueChanged="@((e) => SetPort(PortType.DISCHARGE, e))"
+                                            IsCourierManaged=@IsCourierManagedDefaulted />
+                                @if (!IsValidPortOfDischarge)
+                                {
+                                    <MudItem Class="grid grid-cols-[10%_70%] gap-4 left-[19%] !m-0 relative">
+                                        <label />
+                                        <div class="mud-input-control-helper-container px-2">
+                                            <p class="mud-input-helper-text mud-input-error">
+                                                <div class="d-flex">
+                                                    <div class="me-auto">
+                                                        @string.Format(L["cannot_be_empty"], L["port_of_discharge"])
+                                                    </div>
+                                                </div>
+                                            </p>
+                                        </div>
+                                    </MudItem>
+                                }
+                            </div>
+                            <div class="space-y-8">
+                                <PortLookup Items="Ports.Destination"
+                                            Label="@L["port_of_destination"]"
+                                            For="@(() => Model.DESTINATION_PORT)"
+                                            SelectedValue="@Model.DESTINATION_PORT"
+                                            OnValueChanged="@((e) => SetPort(PortType.DESTINATION, e))"
+                                            IsCourierManaged=@IsCourierManagedDefaulted />
+                            </div>
+                        </MudForm>
+                    </div>
+                    <div class="flex flex-col justify-end w-full lg:w-6/12 px-4">
+                        <MudItem Class="grid grid-cols-[32%_70%] gap-1">
+                            <label>@L["house_bol"]</label>
+                            <MudTextField @bind-Value="Model.SHIPMENT_NUMBER"
+                                          For="@(() => Model.SHIPMENT_NUMBER)"
+                                          Variant="Variant.Outlined"
+                                          Margin="Margin.Dense"
+                                          Disabled=@FormDisable("FACTORY_DATES") />
+                        </MudItem>
+                        <MudItem Class="grid grid-cols-[32%_70%] gap-1">
+                            <label>@L["ex-factory_date"]</label>
+                            <MudDatePicker Date="Model.EX_FACTORY_DATE"
+                                           For="@(() => Model.EX_FACTORY_DATE)"
+                                           Variant="Variant.Outlined"
+                                                                  Disabled
+                                           Margin="Margin.Dense" />
+                        </MudItem>
+                        <MudItem Class="grid grid-cols-[32%_70%] gap-1">
+                            <label>@L["documented_date"]</label>
+                            <MudDatePicker Date="Model.DOC_COMPLETE_DATE"
+                                           For="@(() => Model.DOC_COMPLETE_DATE)"
+                                           Variant="Variant.Outlined"
+                                                                  Disabled
+                                           Margin="Margin.Dense" />
+                        </MudItem>
+                        <MudItem Class="grid grid-cols-[32%_70%] gap-1">
+                            <label>@L["remarks"]</label>
+                            <MudTextField @bind-Value="Model.SHIPMENT_REMARKS"
+                                          For="@(() => Model.SHIPMENT_REMARKS)"
+                                          Lines="3"
+                                          Variant="Variant.Outlined"
+                                          Margin="Margin.Dense"
+                                          Immediate="true" />
+                        </MudItem>
+                    </div>
+                </div>
+            </div>
+            <div>
+                <h6 class="text-slate-400 text-sm mt-4 mb-3 font-bold uppercase">@L["purchaseorders"]</h6>
+                <POList Items="@Model.ShippedOrders" />
+                @if (!IsValidPOList)
+                {
+                    <p class="mud-input-helper-text mud-input-error">
+                        @string.Format(L["cannot_be_empty"], L["polist"])
+                    </p>
+
+                }
+            </div>
+        </MudForm>
+    </div>
+    <div class="flex flex-col w-[260px] mt-[5.2rem] gap-3 action-button">
+        <div class="flex flex-col gap-2 pb-4">
+            @if (authService.User.HasAccess(new string[] { Permissions.Shipments.Create, Permissions.Shipments.Edit }))
+            {
+                <MudButton Variant=" Variant.Filled" Color="Color.Primary" OnClick="@(() => SaveShipment("SAVE"))">@L["save"]</MudButton>
+            }
+            <MudButton Variant="Variant.Filled" Color="Color.Default" OnClick="CancelShipment">@L["cancel"]</MudButton>
+        </div>
+        @if (authService.User.HasAccess(new string[] { Permissions.Shipments.Create, Permissions.Shipments.Edit }))
+        {
+            <MudButton Disabled=@ButtonState("SHIP") Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => ShipmentShipOrModify(ButtonText("SHIP")))">@ButtonText("SHIP")</MudButton>
+            <MudButton Disabled=@ButtonState("CM_INVOICE") Variant="Variant.Filled" OnClick=@ShowCMInvoices Color="Color.Primary">@L["cm_invoice"]</MudButton>
+            <MudButton Disabled=@ButtonState("DOC_COMPLETED") Variant="Variant.Filled" OnClick=@SaveDocComplete Color="Color.Primary">@ButtonText("DOC_COMPLETED")</MudButton>
+        }
+        @if (authService.User.HasAccess(new string[] { Permissions.Documents.View, Permissions.Documents.Upload }))
+        {
+            <MudButton Disabled=@ButtonState("DOC_UPLOAD") Variant="Variant.Filled" OnClick="@(() => _navigation.NavigateTo($"shipment/upload/{Model.HOUSE_BILL_OF_LADING}/{Model.HOUSE_BILL_OF_LADING_ID}"))" Color="Color.Primary">@L["document_upload"]</MudButton>
+        }
+    </div>
+</section>
+
+@code {
+    private CreateShippingModel Model = new CreateShippingModel { ShippedOrders = new List<ShippedOrders>() };
+
+    [Inject] private IShipmentService ShipmentService { get; set; }
+
+    [Parameter] public string HouseBillOfLading { get; set; }
+    [Parameter] public IEnumerable<ShippedOrdersResponse> Orders { get; set; } = new List<ShippedOrdersResponse>();
+    public MetaData MetaData { get; set; } = new MetaData { PageSize = 10, CurrentPage = 0 };
+
+    private PortLookupModel Ports { get; set; } = new();
+    private string[]? PortsOfLoading { get; set; }
+    private string[]? PortsOfDischarge { get; set; }
+    private string[]? PortsOfDestination { get; set; }
+
+    private string HouseBillOfLadingPreserve { get; set; }
+
+    private bool IsSaveValid { get; set; } = true;
+    private bool IsValidShipVia { get; set; } = true;
+    private bool IsValidShipMethod1 { get; set; } = true;
+    private bool IsValidPOList { get; set; } = true;
+    private bool IsValidPortOfDischarge { get; set; } = true;
+    private bool IsCourierManagedDefaulted { get; set; }
+
+    private bool _loading;
+    MudForm form;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!string.IsNullOrEmpty(HouseBillOfLading))
+        {
+            await EditShipmentById();
+
+            await FetchPorts();
+        }
+
+        Model.PropertyChanged += async (sender, e) => { await InvokeAsync(StateHasChanged); };
+    }
+    //protected override async Task OnAfterRenderAsync(bool firstRender)
+    //{
+    //    await base.OnAfterRenderAsync(firstRender);
+    //}
+
+    private async Task EditShipmentById()
+    {
+        _loading = true;
+
+        var response = await ShipmentService.GetByIdAsync(HouseBillOfLading);
+
+        if (response is not null)
+        {
+            Model = _mapper.Map<CreateShippingModel>(response);
+            IsCourierManagedDefaulted = Model.SHIP_VIA == "COURIER";
+        }
+        else
+            Model = new();
+
+        _loading = false;
+    }
+
+    private async Task SearchShipmentById()
+    {
+        _loading = true;
+
+        var response = await ShipmentService.GetByIdAsync(Model.HOUSE_BILL_OF_LADING);
+
+        if (response is not null)
+        {
+            var parameters = new DialogParameters();
+            parameters.Add("ContentText", string.Format(L[$"shipment_cofirm_edit"].ToString(), $"'{Model.HOUSE_BILL_OF_LADING}'"));
+            var dialogresult = DialogService.Show<DialogConfirm>(L["edit"], parameters);
+            var result = await dialogresult.Result;
+
+            if (!result.Cancelled && bool.TryParse(result.Data.ToString(), out bool resultbool))
+            {
+                Model = _mapper.Map<CreateShippingModel>(response);
+                await FetchPorts();
+            }
+            else
+                Model.HOUSE_BILL_OF_LADING = HouseBillOfLading;
+        }
+        else if (Model.HOUSE_BILL_OF_LADING_ID != 0)
+        {
+            var parameters = new DialogParameters();
+            parameters.Add("ContentText", L[$"shipment_name_does_not_exist_create_new_shipment"].ToString());
+            var dialogresult = DialogService.Show<DialogConfirm>(L["shipment_new"], parameters);
+            var result = await dialogresult.Result;
+
+            if (!result.Cancelled && bool.TryParse(result.Data.ToString(), out bool resultbool))
+            {
+
+                Model = new CreateShippingModel { HOUSE_BILL_OF_LADING = Model.HOUSE_BILL_OF_LADING, EST_TIME_DEPARTURE = DateTime.MinValue, EST_TIME_ARRIVAL = DateTime.MinValue, ShippedOrders = new List<ShippedOrders>() };
+                // await InsertShipment();
+            }
+            else
+                Model.HOUSE_BILL_OF_LADING = HouseBillOfLading;
+        }
+        //else
+        //{
+        //    await InsertShipment();
+        //}
+
+        HouseBillOfLading = Model.HOUSE_BILL_OF_LADING;
+
+        _loading = false;
+    }
+
+    private async Task HandleKeyUp(KeyboardEventArgs e)
+    {
+        if ((e.Code == "Enter" || e.Code == "NumpadEnter") && HouseBillOfLading != Model.HOUSE_BILL_OF_LADING)
+            await SearchShipmentById();
+    }
+
+    private async Task HandleOnBlur(FocusEventArgs e)
+    {
+        if (HouseBillOfLading != Model.HOUSE_BILL_OF_LADING && !_loading)
+            await SearchShipmentById();
+    }
+
+    private async Task AddOrders()
+    {
+        var parameters = new DialogParameters();
+        DialogOptions options = new DialogOptions() { MaxWidth = MaxWidth.Large, FullWidth = true };
+        parameters.Add("Title", L[$"purchaseorders"].ToString());
+        parameters.Add("Subtitle", L[$"shipment_po_subtitle"].ToString());
+        parameters.Add("ShippedOrders", Model.ShippedOrders);
+        var dialogresult = DialogService.Show<ShipmentOrdersDialog>("", parameters, options);
+        var result = await dialogresult.Result;
+
+        if (!result.Cancelled)
+        {
+            var selectedLines = result.Data as IList<POLinesResponse>;
+
+            if (selectedLines.Count > 0)
+            {
+                var request = _mapper.Map<List<POLinesRequest>>(selectedLines);
+
+                request.ForEach(x => x.HOUSE_BILL_OF_LADING_ID = Model.HOUSE_BILL_OF_LADING_ID);
+
+                var response = await ShipmentService.AddPOsAsync(request);
+
+                if (response is null || response.Count == 0)
+                    Snackbar.Add(L["shipment_po_add_failed"], Severity.Error);
+                else
+                {
+                    Model.ShippedOrders = response;
+
+                    Snackbar.Add(L["shipment_po_add_success"], Severity.Success);
+
+                    await FetchPorts();
+                }
+            }
+        }
+    }
+
+    //private async void HandleRemoveOrder(ShippedOrders order)
+    //{
+    //    var parameters = new DialogParameters();
+    //    parameters.Add("ContentText", L[$"selected_po_will_be_removed_from_shipment_remove_po"].ToString());
+    //    var dialogresult = DialogService.Show<DialogConfirm>(L["remove_po"], parameters);
+    //    var result = await dialogresult.Result;
+
+    //    if (!result.Cancelled && bool.TryParse(result.Data.ToString(), out bool resultbool))
+    //    {
+
+    //        if (Model.HOUSE_BILL_OF_LADING_ID > 0)
+    //        {
+    //            // CRITICAL SET USER ID
+    //            order.LAST_UPDATE_DATE = DateTime.Now;
+    //            order.LAST_UPDATED_BY
+
+    //            var response = await ShipmentService.RemovePOAsync(order);
+
+    //            if (response.HttpStatusCode != HttpStatusCode.OK)
+    //            {
+    //                Snackbar.Add(L["po_remove_failed"], Severity.Error);
+    //                return;
+    //            }
+    //            else if (response.Response is not null)
+    //                _mapper.Map(response.Response, Model);
+    //        }
+
+    //        Model.ShippedOrders.Remove(order);
+
+    //        StateHasChanged();
+    //        form.ResetValidation();
+
+    //        Snackbar.Add(string.Format(L["and_associations_removed"], Model.HOUSE_BILL_OF_LADING, order.PURCHASE_ORDER_NUMBER), Severity.Success);
+
+    //        await FetchPorts();
+    //    }
+    //}
+
+    private async Task SaveShipment(string action)
+    {
+        if (action == "SHIP")
+        {
+            await form.Validate();
+
+            IsValidPOList = Model.ShippedOrders.Count > 0;
+            IsValidShipVia = !string.IsNullOrEmpty(Model.SHIP_VIA);
+            IsValidShipMethod1 = !string.IsNullOrEmpty(Model.SHIP_METHOD_2);
+            IsValidPortOfDischarge = IsCourierManagedDefaulted || (!string.IsNullOrEmpty(Model.PORT_OF_DISCHARGE) && Ports.Discharge?.Count() > 0);
+
+            if (!form.IsValid || !IsValidPOList || !IsValidShipVia || !IsValidShipMethod1 || !IsValidPortOfDischarge)
+                return;
+
+            //if (HasUnattachedContainerPOs())
+            //{
+            //    Snackbar.Add(L["shipment_saved_unattachedpos_failed"], Severity.Warning);
+            //    return;
+            //}
+
+            Model.IS_SHIPPED = true;
+
+            if (Model.EX_FACTORY_DATE is null)
+                Model.EX_FACTORY_DATE = DateTime.Now;
+        }
+        else if (action == "SAVE")
+        {
+            form.ResetValidation();
+            IsValidShipVia = true;
+            IsValidShipMethod1 = true;
+            IsValidPortOfDischarge = true;
+
+            IsSaveValid = !string.IsNullOrEmpty(Model.HOUSE_BILL_OF_LADING);
+            if (!IsSaveValid)
+                return;
+        }
+
+        var shipment = _mapper.Map<ShipmentCreateUpdate>(Model);
+
+        var response = await ShipmentService.SaveShipmentAsync(shipment);
+
+        if (response.HttpStatusCode != HttpStatusCode.OK)
+            Snackbar.Add(L["shipment_save_failed"], Severity.Error);
+        else
+        {
+            Snackbar.Add(L["shipment_saved_successfully"], Severity.Success);
+            StateHasChanged();
+        }
+
+    }
+
+    private async Task InsertShipment()
+    {
+        var shipment = _mapper.Map<ShipmentCreateUpdate>(Model);
+
+        var response = await ShipmentService.SaveShipmentAsync(shipment);
+
+        if (response.HttpStatusCode != HttpStatusCode.OK)
+            Snackbar.Add(L["shipment_save_failed"], Severity.Error);
+        else
+        {
+            _mapper.Map(response.Response, Model);
+        }
+    }
+
+    private async Task UnlockShipment()
+    {
+        var response = await ShipmentService.UnlockShipmentAsync(Model.HOUSE_BILL_OF_LADING);
+
+        if (response.HttpStatusCode != HttpStatusCode.OK)
+            Snackbar.Add(L["unlocking_current_shipment_has_failed"], Severity.Error);
+        else
+        {
+            Model.IS_SHIPPED = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ShowCMInvoices()
+    {
+        var parameters = new DialogParameters();
+        DialogOptions options = new DialogOptions() { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Large, FullWidth = true };
+        parameters.Add("Subtitle", string.Format("<strong>{0}:</strong> {1}", L[$"shipment_name"], Model.HOUSE_BILL_OF_LADING));
+        parameters.Add("HOUSE_BILL_OF_LADING_ID", Model.HOUSE_BILL_OF_LADING_ID);
+        parameters.Add("ShippedOrders", Model.ShippedOrders);
+        var dialogresult = DialogService.Show<InvoiceDialog>(L[$"cm_invoice"], parameters, options);
+        var result = await dialogresult.Result;
+    }
+
+    private async Task SaveDocComplete()
+    {
+
+        //if (HasUnattachedContainerPOs())
+        //{
+        //    Snackbar.Add(L["shipment_saved_unattachedpos_failed"], Severity.Warning);
+        //    return;
+        //}
+
+        var request = new DocumentCompleteRequest
+            {
+                HOUSE_BILL_OF_LADING = Model.HOUSE_BILL_OF_LADING,
+                DOC_COMPLETED = true,
+                DOC_COMPLETE_DATE = DateTime.Now
+            };
+
+        if (Model.DOC_COMPLETE_DATE.HasValue)
+            request.DOC_COMPLETE_DATE = Model.DOC_COMPLETE_DATE.Value;
+
+        var response = await ShipmentService.SaveDocCompleteAsync(request);
+
+        if (response.HttpStatusCode == HttpStatusCode.OK)
+        {
+            Snackbar.Add(L["shipment_doc_complete_success"], Severity.Success);
+            Model.DOC_COMPLETED = true;
+            Model.DOC_COMPLETE_DATE = request.DOC_COMPLETE_DATE;
+            StateHasChanged();
+        }
+        else if (response.Message.Equals("INCOMPLETEDINVOICES", StringComparison.OrdinalIgnoreCase))
+            Snackbar.Add(L["shipment_doc_complete_cm_invoices_error"], Severity.Error);
+        else
+            Snackbar.Add(string.Format(L["shipment_doc_complete_failed"], Model.HOUSE_BILL_OF_LADING), Severity.Error);
+
+    }
+
+    private void CancelShipment()
+    {
+        _navigation.NavigateBack();
+    }
+
+    private async Task FetchPorts()
+    {
+        var lineItem = Model.ShippedOrders.FirstOrDefault();
+
+        if (lineItem is null || Ports is null || string.IsNullOrEmpty(Model.SHIP_VIA))
+        {
+            Ports = new();
+        }
+        else
+        {
+            var lovType = lineItem.PO_ORDER_TYPE;
+            var lovRegion = lineItem.SHIP_TO_SITE_REGION;
+
+            var response = await ShipmentService.GetPortsLookupAsync(Model.SHIP_VIA, lovType, lovRegion);
+
+            if (response is null)
+                return;
+
+            Ports.Loading = response.Loading.Select(x => x.LOV_VALUE).ToArray();
+            Ports.Discharge = response.Discharge.Select(x => x.LOV_VALUE).ToArray();
+            Ports.Destination = response.Destination.Select(x => x.LOV_VALUE).ToArray();
+        }
+    }
+
+    private async Task SetShipMethodOne(string e)
+    {
+        Model.SHIP_VIA = e;
+
+        if (e.Equals("COURIER"))
+        {
+            Ports.Loading = null;
+            Ports.Discharge = null;
+            Ports.Destination = null;
+
+            Model.PORT_OF_ORIGIN = "Courier Managed";
+            Model.PORT_OF_DISCHARGE = "Courier Managed";
+            Model.DESTINATION_PORT = "Courier Managed";
+
+            IsCourierManagedDefaulted = true;
+        }
+        else
+        {
+            Model.SHIP_INFO_1 = null;
+            Model.SHIP_INFO_2 = null;
+            Model.SHIP_METHOD_2 = null;
+            Model.PORT_OF_ORIGIN = null;
+            Model.PORT_OF_DISCHARGE = null;
+            Model.DESTINATION_PORT = null;
+
+            IsCourierManagedDefaulted = false;
+
+            await FetchPorts();
+        }
+
+        StateHasChanged();
+    }
+
+    private async Task SetShipMethodTwo(string e)
+    {
+        Model.SHIP_METHOD_2 = e;
+        StateHasChanged();
+    }
+
+    private bool IsDepartureDateNull => !Model.EST_TIME_DEPARTURE.HasValue;
+
+    private string VeselLabel()
+    {
+        switch (Model.SHIP_VIA?.ToLower())
+        {
+            case "ocean":
+                return L["vessel_name"];
+            case "air":
+                return L["flight"];
+            case "land":
+                return L["vehicle_name"];
+            case "rail":
+                return L["train_name"];
+            case "courier":
+                return L["tracking"];
+            default:
+                return L["vessel_name"];
+        }
+    }
+
+    private async Task SetPort(PortType portType, string e)
+    {
+        switch (portType)
+        {
+            case PortType.FORWARDER:
+                Model.FORWARDER = e;
+                break;
+            case PortType.LOADING:
+                Model.PORT_OF_ORIGIN = e;
+                break;
+            case PortType.DISCHARGE:
+                Model.PORT_OF_DISCHARGE = e;
+                break;
+            case PortType.DESTINATION:
+                Model.DESTINATION_PORT = e;
+                break;
+        }
+    }
+
+    private bool ButtonState(string button)
+    {
+        switch (button)
+        {
+            //case "SAVE":
+            //    return Model.HOUSE_BILL_OF_LADING_ID > 0 && Model.DOC_COMPLETED;
+            case "SHIP":
+                return Model.HOUSE_BILL_OF_LADING_ID > 0 && Model.IS_SHIPPED && Model.DOC_COMPLETED;
+            case "PO":
+                return Model.HOUSE_BILL_OF_LADING_ID == 0 || (Model.HOUSE_BILL_OF_LADING_ID > 0 && Model.IS_SHIPPED);
+            case "CM_INVOICE":
+                return Model.HOUSE_BILL_OF_LADING_ID == 0 || (Model.HOUSE_BILL_OF_LADING_ID > 0 && Model.DOC_COMPLETED);
+            case "DOC_COMPLETED":
+                return Model.HOUSE_BILL_OF_LADING_ID == 0 || (Model.HOUSE_BILL_OF_LADING_ID > 0 && Model.IS_SHIPPED == Model.DOC_COMPLETED);
+            case "DOC_UPLOAD":
+                return Model.HOUSE_BILL_OF_LADING_ID == 0;
+            default:
+                return false;
+        }
+    }
+
+    private string ButtonText(string button)
+    {
+        switch (button)
+        {
+            case "SHIP" when Model.HOUSE_BILL_OF_LADING_ID == 0 || (!Model.IS_SHIPPED && !Model.DOC_COMPLETED):
+                return L["ship"];
+            case "SHIP":
+                return L["modify_shipment"];
+            case "DOC_COMPLETED" when Model.HOUSE_BILL_OF_LADING_ID == 0 || !Model.DOC_COMPLETED:
+                return L["complete"];
+            case "DOC_COMPLETED":
+                return L["documentation_completed"];
+            default:
+                return "";
+        }
+    }
+
+    private bool FormDisable(string name)
+    {
+        switch (name)
+        {
+            case "PO_LIST" when Model.HOUSE_BILL_OF_LADING_ID == 0 || (Model.HOUSE_BILL_OF_LADING_ID > 0 && Model.IS_SHIPPED):
+                return true;
+            case "SHIPMENT_METHODS" when Model.ShippedOrders.Count == 0 || Model.IS_SHIPPED || Model.DOC_COMPLETED:
+                return true;
+            case "FACTORY_DATES" when Model.HOUSE_BILL_OF_LADING_ID == 0 || (Model.HOUSE_BILL_OF_LADING_ID > 0 && Model.IS_SHIPPED):
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    private async void ShipmentShipOrModify(string buttonText)
+    {
+        if (buttonText == L["modify_shipment"])
+            await UnlockShipment();
+        else
+            await SaveShipment("SHIP");
+    }
+
+    enum PortType
+    {
+        FORWARDER,
+        LOADING,
+        DISCHARGE,
+        DESTINATION
+    }
+
+    //private bool HasUnattachedContainerPOs()
+    //{
+    //    return Model.ShippedOrders.Count(x => !x.IsInContainer) > 0;
+    //}
+}

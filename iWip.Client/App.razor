@@ -1,0 +1,58 @@
+﻿@*****************************************************************************
+
+* Copyright (c) 2024 iRobot Corporation. All Rights Reserved.
+*****************************************************************************@
+
+@using iWip.Client.Pages.Authentication
+@using iWip.Client.Pages.Shared
+@inject IStringLocalizer<Resource> L
+
+<Fluxor.Blazor.Web.StoreInitializer />
+
+<CascadingAuthenticationState>
+    <Router AppAssembly="@typeof(App).Assembly">
+        <Found Context="routeData">
+            <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)">
+                <Authorizing>
+                    <section class="flex items-center h-full p-16 dark:bg-gray-900 dark:text-gray-100">
+                        <div class="container flex flex-col items-center justify-center px-5 mx-auto my-8">
+                            <div class="max-w-md text-center">
+                                <h2 class="mb-8 font-extrabold text-9xl dark:text-gray-600">
+                                    <span class="sr-only">Error</span>401
+                                </h2>
+                                <p class="text-2xl font-semibold md:text-3xl">@L["unauthorized_title"]</p>
+                                <p class="mt-4 mb-8 dark:text-gray-400">@((MarkupString)L["unauthorized_subtitle"].ToString())</p>
+                                <MudLink Class="px-8 py-3 font-semibold rounded dark:bg-violet-400 dark:text-gray-900" Size="Size.Small" Href="/">@L["return_home"]</MudLink>
+                            </div>
+                        </div>
+                    </section>
+                </Authorizing>
+                <NotAuthorized>
+                    @if (context.User.Identity.IsAuthenticated)
+                    {
+                        <section class="flex items-center h-full p-16 dark:bg-gray-900 dark:text-gray-100">
+                            <div class="container flex flex-col items-center justify-center px-5 mx-auto my-8">
+                                <div class="max-w-md text-center">
+                                    <h2 class="mb-8 font-extrabold text-9xl dark:text-gray-600">
+                                        <span class="sr-only">Error</span>401
+                                    </h2>
+                                    <p class="text-2xl font-semibold md:text-3xl">@L["unauthorized_title"]</p>
+                                    <p class="mt-4 mb-8 dark:text-gray-400">@((MarkupString)L["unauthorized_subtitle"].ToString())</p>
+                                    <MudLink Class="px-8 py-3 font-semibold rounded dark:bg-violet-400 dark:text-gray-900" Size="Size.Small" Href="/">@L["return_home"]</MudLink>
+                                </div>
+                            </div>
+                        </section>
+                    }
+                    else
+                    {
+                        <RedirectToLogin IsAuthenticated="@context.User.Identity.IsAuthenticated" />
+                    }
+                </NotAuthorized>
+            </AuthorizeRouteView>
+            <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+        </Found>
+        <NotFound>
+            <NotFound />
+        </NotFound>
+    </Router>
+</CascadingAuthenticationState>
